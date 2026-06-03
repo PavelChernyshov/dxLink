@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@asyncapi/react-component": "2.5.0",
-    "@dxfeed/dxlink-api": "*",
+    "@dxfeed/dxlink-api": "workspace:*",
     "@dxfeed/ui-kit": "2.15.2",
     "@dxscript/dxlink-dxcharts-lite": "^1.11.2",
     "@dxscript/dxlink-dxscript-editor": "^1.11.2",
@@ -31,7 +31,7 @@
     "@types/react-dom": "^18.2.14",
     "@types/react-is": "^18.2.3",
     "@types/styled-components": "^5.1.29",
-    "@vitejs/plugin-react": "^4.1.1",
-    "vite": "^4.5.0"
+    "@vitejs/plugin-react": "^6.0.2",
+    "vite": "^8.0.16"
   }
 }

@@ -5,7 +5,12 @@ import { useEffect, useRef, useState } from 'react'
 import styled from 'styled-components'
 
 import { CandlesSubscription } from './candles-subscription'
-import type { DXLinkCandleData, DXLinkCandleEvent, DXLinkCandles, DXLinkCandleSubscription } from '../candles/candles'
+import type {
+  DXLinkCandleData,
+  DXLinkCandleEvent,
+  DXLinkCandles,
+  DXLinkCandleSubscription,
+} from '../candles/candles'
 import { ContentTemplate } from '../common/content-template'
 
 const ChartContainer = styled(IndiChart)`

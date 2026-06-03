@@ -1,0 +1,31 @@
+packages:
+  - dxlink-api
+  - dxlink-core
+  - dxlink-websocket-client
+  - dxlink-feed
+  - dxlink-dom
+  - dxlink-indichart
+  - dxlink-rpc
+  - dxlink-docs
+# esbuild and unrs-resolver are native modules that need their install scripts.
+# The other flagged packages (protobufjs, styled-components) don't, so skip them.
+onlyBuiltDependencies:
+  - esbuild
+  - unrs-resolver
+ignoredBuiltDependencies:
+  - protobufjs
+  - styled-components
+
+# Supply-chain cooldown: don't install npm releases younger than this many minutes
+# (1440 = 1 day), giving a compromised publish time to be detected and yanked
+# before it can land here. Internal/private-registry scopes are exempt (trusted
+# sources that may also omit publish-time metadata).
+minimumReleaseAge: 1440
+minimumReleaseAgeExclude:
+  - '@dxfeed/*'
+  - '@dxscript/*'
+allowBuilds:
+  esbuild: true
+  protobufjs: false
+  styled-components: false
+  unrs-resolver: true

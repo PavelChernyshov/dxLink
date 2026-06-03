@@ -320,7 +320,7 @@ function SessionParameterField({ parameter, value, onChange }: ParameterFieldPro
   const openDialog = () => {
     setDraftValue(
       hasConstrainedOptions && !constrainedOptions.includes(stringValue)
-        ? constrainedOptions[0] ?? stringValue
+        ? (constrainedOptions[0] ?? stringValue)
         : stringValue
     )
     setMode(parsedValue ? 'interval' : 'raw')
