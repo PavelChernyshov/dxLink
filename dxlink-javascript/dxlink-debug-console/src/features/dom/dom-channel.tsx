@@ -32,7 +32,6 @@ const ASKS = [
 interface DomChannelProps {
   title: string
   config: DomConfig
-  onClose: () => void
 }
 
 const LadderSide = ({
@@ -68,12 +67,11 @@ const LadderSide = ({
 }
 
 /** Depth-of-Market channel view (draft / presentational only). */
-export const DomChannel = ({ title, config, onClose }: DomChannelProps) => (
+export const DomChannel = ({ title, config }: DomChannelProps) => (
   <ChannelWidget
     icon={<ViewColumnIcon />}
     title={title}
     subtitle={`DOM · ${config.symbol || '—'}`}
-    onClose={onClose}
     status={<Chip size="small" color="success" variant="outlined" label="streaming" />}
   >
     <Stack spacing={2}>

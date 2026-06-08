@@ -30,20 +30,21 @@ export interface DraftChannel {
   config: ChannelConfig
 }
 
-// Setup-form draft shapes — preserved between dialog opens so the user can
-// quickly open multiple channels.
-export interface FeedDraft {
+// Channel-request parameters — the values entered in each service's request
+// form. Preserved between dialog opens so the user can quickly open several
+// channels of the same kind.
+export interface FeedRequest {
   view: FeedView
   feed: string
   space: string
 }
 
-export interface DomDraft {
+export interface DomRequest {
   symbol: string
   source: string
 }
 
-export interface IndiDraft {
+export interface IndiChartRequest {
   indicators: string[]
 }
 

@@ -254,11 +254,10 @@ const IndicatorPanel = ({
 interface IndiChartChannelProps {
   title: string
   config: IndiChartConfig
-  onClose: () => void
 }
 
 /** IndiChart channel view (draft / presentational only). */
-export const IndiChartChannel = ({ title, config, onClose }: IndiChartChannelProps) => {
+export const IndiChartChannel = ({ title, config }: IndiChartChannelProps) => {
   const entries = buildEntries(config.indicators)
 
   const [symbol, setSymbol] = useState('AAPL{=d}')
@@ -291,7 +290,6 @@ export const IndiChartChannel = ({ title, config, onClose }: IndiChartChannelPro
       icon={<InsightsIcon />}
       title={title}
       subtitle={`IndiChart · ${entries.length} indicator${entries.length === 1 ? '' : 's'}`}
-      onClose={onClose}
       status={
         errorCount > 0 ? (
           <Chip

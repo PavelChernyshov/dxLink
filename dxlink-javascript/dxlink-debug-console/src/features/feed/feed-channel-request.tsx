@@ -5,15 +5,15 @@ import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import Typography from '@mui/material/Typography'
 
-import type { FeedDraft, FeedView } from '../channels/types'
+import type { FeedRequest, FeedView } from '../channels/types'
 
-interface FeedSetupProps {
-  value: FeedDraft
-  onChange: (value: FeedDraft) => void
+interface FeedChannelRequestProps {
+  value: FeedRequest
+  onChange: (value: FeedRequest) => void
 }
 
-/** Feed channel setup form (draft / presentational only). */
-export const FeedSetup = ({ value, onChange }: FeedSetupProps) => (
+/** Feed channel request form (draft / presentational only). */
+export const FeedChannelRequest = ({ value, onChange }: FeedChannelRequestProps) => (
   <Stack spacing={2.5} sx={{ pt: 1 }}>
     <Box>
       <Typography variant="subtitle2" gutterBottom>

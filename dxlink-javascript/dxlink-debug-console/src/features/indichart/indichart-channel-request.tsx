@@ -11,7 +11,7 @@ import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 
 import { MAX_INDICATORS } from '../channels/types'
-import type { IndiDraft } from '../channels/types'
+import type { IndiChartRequest } from '../channels/types'
 
 const SAMPLES = [
   {
@@ -33,13 +33,13 @@ const SAMPLES = [
 
 const sampleCode = (id: string): string => SAMPLES.find((s) => s.id === id)?.code ?? ''
 
-interface IndiChartSetupProps {
-  value: IndiDraft
-  onChange: (value: IndiDraft) => void
+interface IndiChartChannelRequestProps {
+  value: IndiChartRequest
+  onChange: (value: IndiChartRequest) => void
 }
 
-/** IndiChart channel setup (draft / presentational only): 1..N indicator scripts. */
-export const IndiChartSetup = ({ value, onChange }: IndiChartSetupProps) => {
+/** IndiChart channel request form (draft / presentational only): 1..N indicator scripts. */
+export const IndiChartChannelRequest = ({ value, onChange }: IndiChartChannelRequestProps) => {
   const setAt = (index: number, code: string) =>
     onChange({ indicators: value.indicators.map((c, i) => (i === index ? code : c)) })
 

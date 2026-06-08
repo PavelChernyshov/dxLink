@@ -1,15 +1,15 @@
 import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 
-import type { DomDraft } from '../channels/types'
+import type { DomRequest } from '../channels/types'
 
-interface DomSetupProps {
-  value: DomDraft
-  onChange: (value: DomDraft) => void
+interface DomChannelRequestProps {
+  value: DomRequest
+  onChange: (value: DomRequest) => void
 }
 
-/** DOM channel setup form (draft / presentational only). */
-export const DomSetup = ({ value, onChange }: DomSetupProps) => (
+/** DOM channel request form (draft / presentational only). */
+export const DomChannelRequest = ({ value, onChange }: DomChannelRequestProps) => (
   <Stack spacing={2.5} sx={{ pt: 1 }}>
     <TextField
       label="Symbol"

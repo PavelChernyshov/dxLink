@@ -17,18 +17,18 @@ import type { ReactNode } from 'react'
 import type {
   ChannelConfig,
   ChannelKind,
-  DomDraft,
+  DomRequest,
   DraftChannel,
-  FeedDraft,
-  IndiDraft,
+  FeedRequest,
+  IndiChartRequest,
 } from './types'
 import { DEFAULT_INDICATOR_CODE } from './types'
 import { DomChannel } from '../dom/dom-channel'
-import { DomSetup } from '../dom/dom-setup'
+import { DomChannelRequest } from '../dom/dom-channel-request'
 import { FeedChannel } from '../feed/feed-channel'
-import { FeedSetup } from '../feed/feed-setup'
+import { FeedChannelRequest } from '../feed/feed-channel-request'
 import { IndiChartChannel } from '../indichart/indichart-channel'
-import { IndiChartSetup } from '../indichart/indichart-setup'
+import { IndiChartChannelRequest } from '../indichart/indichart-channel-request'
 
 const ADD_BUTTONS: { kind: ChannelKind; label: string; icon: ReactNode }[] = [
   { kind: 'feed', label: 'Feed', icon: <ShowChartIcon /> },
@@ -39,39 +39,42 @@ const ADD_BUTTONS: { kind: ChannelKind; label: string; icon: ReactNode }[] = [
 const LABELS: Record<ChannelKind, string> = { feed: 'Feed', dom: 'DOM', indichart: 'IndiChart' }
 
 const DIALOG_TITLES: Record<ChannelKind, string> = {
-  feed: 'Open Feed channel',
-  dom: 'Open DOM channel',
-  indichart: 'Open IndiChart channel',
+  feed: 'New Feed channel',
+  dom: 'New DOM channel',
+  indichart: 'New IndiChart channel',
 }
 
-const renderChannel = (channel: DraftChannel, onClose: () => void) => {
+const renderChannel = (channel: DraftChannel) => {
   const title = `${LABELS[channel.config.kind]} #${channel.id}`
   switch (channel.config.kind) {
     case 'feed':
-      return <FeedChannel title={title} config={channel.config} onClose={onClose} />
+      return <FeedChannel title={title} config={channel.config} />
     case 'dom':
-      return <DomChannel title={title} config={channel.config} onClose={onClose} />
+      return <DomChannel title={title} config={channel.config} />
     case 'indichart':
-      return <IndiChartChannel title={title} config={channel.config} onClose={onClose} />
+      return <IndiChartChannel title={title} config={channel.config} />
   }
 }
 
 /**
  * Channels area (draft / presentational only). Owns the open channels and the
- * per-service setup dialog. Setup drafts persist between opens so the user can
- * quickly open several channels; each opened channel manages its own state.
+ * per-service channel-request dialog. Request forms keep their values between
+ * opens so the user can quickly open several channels; each opened channel
+ * manages its own state.
  */
 export const ChannelsArea = () => {
   const [channels, setChannels] = useState<DraftChannel[]>([])
-  const [setupKind, setSetupKind] = useState<ChannelKind | null>(null)
+  const [requestKind, setRequestKind] = useState<ChannelKind | null>(null)
 
-  const [feedDraft, setFeedDraft] = useState<FeedDraft>({
+  const [feedRequest, setFeedRequest] = useState<FeedRequest>({
     view: 'subscriptions',
     feed: '',
     space: '',
   })
-  const [domDraft, setDomDraft] = useState<DomDraft>({ symbol: 'AAPL', source: '' })
-  const [indiDraft, setIndiDraft] = useState<IndiDraft>({ indicators: [DEFAULT_INDICATOR_CODE] })
+  const [domRequest, setDomRequest] = useState<DomRequest>({ symbol: 'AAPL', source: '' })
+  const [indiRequest, setIndiRequest] = useState<IndiChartRequest>({
+    indicators: [DEFAULT_INDICATOR_CODE],
+  })
 
   const nextId = useRef(1)
   const [scrollToId, setScrollToId] = useState<string | null>(null)
@@ -87,35 +90,32 @@ export const ChannelsArea = () => {
   }, [scrollToId])
 
   const openChannel = () => {
-    if (setupKind === null) {
+    if (requestKind === null) {
       return
     }
     const id = String(nextId.current)
     nextId.current += 1
 
     let config: ChannelConfig
-    if (setupKind === 'feed') {
+    if (requestKind === 'feed') {
       config = {
         kind: 'feed',
-        view: feedDraft.view,
-        feed: feedDraft.feed.trim(),
-        space: feedDraft.space.trim(),
+        view: feedRequest.view,
+        feed: feedRequest.feed.trim(),
+        space: feedRequest.space.trim(),
       }
-    } else if (setupKind === 'dom') {
-      config = { kind: 'dom', symbol: domDraft.symbol.trim(), source: domDraft.source.trim() }
+    } else if (requestKind === 'dom') {
+      config = { kind: 'dom', symbol: domRequest.symbol.trim(), source: domRequest.source.trim() }
     } else {
-      config = { kind: 'indichart', indicators: indiDraft.indicators }
+      config = { kind: 'indichart', indicators: indiRequest.indicators }
     }
 
     setChannels((current) => [...current, { id, config }])
-    setSetupKind(null)
+    setRequestKind(null)
     setScrollToId(id)
   }
 
-  const closeChannel = (id: string) =>
-    setChannels((current) => current.filter((channel) => channel.id !== id))
-
-  const canOpen = setupKind !== 'dom' || domDraft.symbol.trim().length > 0
+  const canOpen = requestKind !== 'dom' || domRequest.symbol.trim().length > 0
 
   return (
     <Stack spacing={2}>
@@ -130,7 +130,7 @@ export const ChannelsArea = () => {
             variant="outlined"
             color="inherit"
             startIcon={button.icon}
-            onClick={() => setSetupKind(button.kind)}
+            onClick={() => setRequestKind(button.kind)}
           >
             {button.label}
           </Button>
@@ -156,22 +156,31 @@ export const ChannelsArea = () => {
       ) : (
         channels.map((channel) => (
           <Box key={channel.id} id={`channel-${channel.id}`} sx={{ scrollMarginTop: 80 }}>
-            {renderChannel(channel, () => closeChannel(channel.id))}
+            {renderChannel(channel)}
           </Box>
         ))
       )}
 
-      <Dialog open={setupKind !== null} onClose={() => setSetupKind(null)} fullWidth maxWidth="sm">
-        <DialogTitle>{setupKind ? DIALOG_TITLES[setupKind] : ''}</DialogTitle>
+      <Dialog
+        open={requestKind !== null}
+        onClose={() => setRequestKind(null)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>{requestKind ? DIALOG_TITLES[requestKind] : ''}</DialogTitle>
         <DialogContent dividers>
-          {setupKind === 'feed' && <FeedSetup value={feedDraft} onChange={setFeedDraft} />}
-          {setupKind === 'dom' && <DomSetup value={domDraft} onChange={setDomDraft} />}
-          {setupKind === 'indichart' && (
-            <IndiChartSetup value={indiDraft} onChange={setIndiDraft} />
+          {requestKind === 'feed' && (
+            <FeedChannelRequest value={feedRequest} onChange={setFeedRequest} />
+          )}
+          {requestKind === 'dom' && (
+            <DomChannelRequest value={domRequest} onChange={setDomRequest} />
+          )}
+          {requestKind === 'indichart' && (
+            <IndiChartChannelRequest value={indiRequest} onChange={setIndiRequest} />
           )}
         </DialogContent>
         <DialogActions>
-          <Button color="inherit" onClick={() => setSetupKind(null)}>
+          <Button color="inherit" onClick={() => setRequestKind(null)}>
             Cancel
           </Button>
           <Button variant="contained" onClick={openChannel} disabled={!canOpen}>

@@ -107,5 +107,19 @@ export const theme = createTheme({
         },
       },
     },
+    // Compact dropdowns: Select menus open dense, matching the `size="small"`
+    // inputs they belong to. The app has no app-level menus (nav is buttons),
+    // so this effectively scopes to Select popovers.
+    MuiMenuItem: {
+      defaultProps: {
+        dense: true,
+      },
+      styleOverrides: {
+        root: {
+          fontSize: '0.8125rem',
+          minHeight: 30,
+        },
+      },
+    },
   },
 })
