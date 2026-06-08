@@ -1,5 +1,17 @@
 # @dxfeed/dxlink-api
 
+## 0.9.0
+
+### Patch Changes
+
+- Updated dependencies
+  - @dxfeed/dxlink-indichart@0.9.0
+  - @dxfeed/dxlink-core@0.9.0
+  - @dxfeed/dxlink-dom@0.9.0
+  - @dxfeed/dxlink-feed@0.9.0
+  - @dxfeed/dxlink-rpc@0.9.0
+  - @dxfeed/dxlink-websocket-client@0.9.0
+
 ## 0.8.1
 
 ### Patch Changes

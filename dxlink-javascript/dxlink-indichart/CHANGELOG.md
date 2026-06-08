@@ -1,5 +1,15 @@
 # @dxfeed/dxlink-indichart
 
+## 0.9.0
+
+### Minor Changes
+
+- Add missing `DXLinkIndiChartCalculationResult` series and point types to match the server output. The result now types the `shape`, `backgroundColor`, and `barColor` series in addition to `output` and `spline`, with new `DXLinkIndiChartShapePoint` and `DXLinkIndiChartColorPoint` types and the `DXLinkIndiChartSplineStyle`, `DXLinkIndiChartShapeStyle`, and `DXLinkIndiChartShapeLocation` unions (each with a `(string & {})` fallback so clients can handle future server values while keeping autocomplete). Series arrays are now index-aligned with the candles and may contain `null` padding entries. The spline point's `type` field was corrected to `style` to match the wire format.
+
+### Patch Changes
+
+- @dxfeed/dxlink-core@0.9.0
+
 ## 0.8.1
 
 ### Patch Changes

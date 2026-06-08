@@ -177,18 +177,104 @@ export interface DXLinkIndiChartColor {
   readonly alpha?: number
 }
 
+/**
+ * Drawing style of a {@link DXLinkIndiChartSplinePoint}.
+ *
+ * The listed literals are the values currently produced by the server. The `(string & {})`
+ * fallback keeps editor autocomplete for the known values while still allowing clients to
+ * handle any future style the server may introduce.
+ */
+export type DXLinkIndiChartSplineStyle =
+  | 'LINE'
+  | 'STEPLINE'
+  | 'HISTOGRAM'
+  | 'CROSS'
+  | 'AREA'
+  | 'COLUMNS'
+  | 'CIRCLES'
+  | 'LINE_BREAK'
+  | 'AREA_BREAK'
+  | 'STEPLINE_BREAK'
+  | (string & {})
+
+/**
+ * Drawing style of a {@link DXLinkIndiChartShapePoint}.
+ *
+ * The listed literals are the values currently produced by the server. The `(string & {})`
+ * fallback keeps editor autocomplete for the known values while still allowing clients to
+ * handle any future style the server may introduce.
+ */
+export type DXLinkIndiChartShapeStyle =
+  | 'TAG'
+  | 'ARROW_UP'
+  | 'ARROW_DOWN'
+  | 'XCROSS'
+  | 'CROSS'
+  | 'BEACON'
+  | 'CIRCLE'
+  | (string & {})
+
+/**
+ * Anchor location of a {@link DXLinkIndiChartShapePoint} on the chart.
+ *
+ * The listed literals are the values currently produced by the server. The `(string & {})`
+ * fallback keeps editor autocomplete for the known values while still allowing clients to
+ * handle any future location the server may introduce.
+ */
+export type DXLinkIndiChartShapeLocation =
+  | 'ABOVE_BAR'
+  | 'BELOW_BAR'
+  | 'TOP'
+  | 'BOTTOM'
+  | 'ABSOLUTE'
+  | (string & {})
+
 export interface DXLinkIndiChartSplinePoint {
   readonly value: JSONNumber
-  readonly type?: string
+  readonly style?: DXLinkIndiChartSplineStyle
   readonly offset?: number
   readonly title?: string
   readonly color?: DXLinkIndiChartColor
   readonly overlay?: boolean
 }
 
+/**
+ * Point of a `shape` series of a {@link DXLinkIndiChartCalculationResult}.
+ */
+export interface DXLinkIndiChartShapePoint {
+  readonly value: JSONNumber
+  readonly color?: DXLinkIndiChartColor
+  readonly textColor?: DXLinkIndiChartColor
+  readonly text?: string
+  readonly style?: DXLinkIndiChartShapeStyle
+  readonly offset?: number
+  readonly title?: string
+  readonly location?: DXLinkIndiChartShapeLocation
+  readonly overlay?: boolean
+}
+
+/**
+ * Point of a `backgroundColor` or `barColor` series of a {@link DXLinkIndiChartCalculationResult}.
+ * `color` is always present but may be `null` when the script produced no color for this point.
+ */
+export interface DXLinkIndiChartColorPoint {
+  readonly color: DXLinkIndiChartColor | null
+  readonly offset?: number
+  readonly title?: string
+  readonly numberOfLast?: number
+  readonly overlay?: boolean
+}
+
+/**
+ * Result of an indicator calculation. Each series maps a series name to an array of points
+ * that is index-aligned with the candles. Missing/padding points are represented as `null`.
+ */
 export interface DXLinkIndiChartCalculationResult {
-  readonly output?: { [seriesName: string]: JSONNumber[] }
-  readonly spline?: { [seriesIndex: string]: DXLinkIndiChartSplinePoint[] }
+  readonly output?: { [seriesName: string]: (JSONNumber | null)[] }
+  readonly spline?: { [seriesName: string]: (DXLinkIndiChartSplinePoint | null)[] }
+  readonly backgroundColor?: { [seriesName: string]: (DXLinkIndiChartColorPoint | null)[] }
+  readonly barColor?: { [seriesName: string]: (DXLinkIndiChartColorPoint | null)[] }
+  readonly shape?: { [seriesName: string]: (DXLinkIndiChartShapePoint | null)[] }
 }
 
 export interface DXLinkIndiChartIndicatorsData {
