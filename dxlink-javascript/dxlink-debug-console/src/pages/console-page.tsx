@@ -1,45 +1,39 @@
+import { DXLinkAuthState, DXLinkConnectionState } from '@dxfeed/dxlink-api'
 import Stack from '@mui/material/Stack'
-import { useState } from 'react'
 
 import { AuthPanel } from '../features/auth/auth-panel'
 import { ChannelsArea } from '../features/channels/channels-area'
+import { ConnectionProvider } from '../features/connection/connection-context'
 import { ConnectionPanel } from '../features/connection/connection-panel'
-import type { ConnectionUiState } from '../features/connection/connection-panel'
-import { ErrorCenter } from '../features/errors/error-center'
-import type { DraftError } from '../features/errors/error-center'
-
-// Draft-only sample data so the error center is populated for review.
-const SAMPLE_ERRORS: DraftError[] = [
-  { type: 'TIMEOUT', message: 'Keepalive timeout exceeded (60s).', time: '15:39:12' },
-  { type: 'BAD_ACTION', message: 'Unexpected server message for channel 3.', time: '15:40:55' },
-]
+import { ConnectionViewModel } from '../features/connection/connection-view-model'
+import { useOwnedViewModel, useVM } from '../shared/view-model'
 
 /**
- * Console page (draft / presentational only). Composes the connection, auth and
- * channels feature views with local UI state — NO dxlink-api logic. In Phase 1+
- * this is replaced by a page-scoped ConnectionViewModel + VMProvider.
+ * Console page. Owns the page-scoped {@link ConnectionViewModel} (disposed on
+ * unmount → closes the socket) and provides it to the subtree. Tri-state gating:
+ *  - not connected → connection panel only,
+ *  - connected + auth UNAUTHORIZED/AUTHORIZING → auth panel,
+ *  - connected + auth AUTHORIZED → channels area.
+ * `auth === undefined` (not yet known) shows neither, avoiding a token-form flash
+ * on no-auth servers.
  */
 export const ConsolePage = () => {
-  const [state, setState] = useState<ConnectionUiState>('connected')
-  const [authorized, setAuthorized] = useState(true)
+  const vm = useOwnedViewModel(() => new ConnectionViewModel())
+  const connection = useVM(vm, (s) => s.connection)
+  const auth = useVM(vm, (s) => s.auth)
+
+  const connected = connection === DXLinkConnectionState.CONNECTED
+  const needsAuth =
+    connected && (auth === DXLinkAuthState.UNAUTHORIZED || auth === DXLinkAuthState.AUTHORIZING)
+  const authorized = connected && auth === DXLinkAuthState.AUTHORIZED
 
   return (
-    <Stack spacing={3}>
-      <ConnectionPanel
-        state={state}
-        onConnect={() => setState('connected')}
-        onDisconnect={() => {
-          setState('disconnected')
-          setAuthorized(false)
-        }}
-        errorSlot={<ErrorCenter errors={SAMPLE_ERRORS} />}
-      />
-
-      {state === 'connected' && !authorized && (
-        <AuthPanel onAuthorize={() => setAuthorized(true)} />
-      )}
-
-      {state === 'connected' && authorized && <ChannelsArea />}
-    </Stack>
+    <ConnectionProvider value={vm}>
+      <Stack spacing={3}>
+        <ConnectionPanel />
+        {needsAuth && <AuthPanel />}
+        {authorized && <ChannelsArea />}
+      </Stack>
+    </ConnectionProvider>
   )
 }

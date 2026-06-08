@@ -45,9 +45,9 @@ describe('getDefaultWsUrl', () => {
     ).toBe('wss://demo.dxfeed.com')
   })
 
-  it('returns the dev relay URL in development', () => {
+  it('returns the dev WS endpoint verbatim in development (no ws/wss downgrade)', () => {
     const location = { protocol: 'https:', host: 'demo.dxfeed.com', pathname: '/debug' }
-    expect(getDefaultWsUrl(location, false)).toBe(deriveWsUrlFromLocation(new URL(DEV_WS_URL)))
-    expect(getDefaultWsUrl(location, false)).toBe('ws://localhost:9959/')
+    expect(getDefaultWsUrl(location, false)).toBe(DEV_WS_URL)
+    expect(getDefaultWsUrl(location, false)).toBe('wss://dxlink-md-ws-dev.dxkube.com')
   })
 })

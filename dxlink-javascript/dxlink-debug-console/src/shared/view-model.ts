@@ -10,8 +10,8 @@ import { useStore } from 'zustand'
  * `dispose()` MUST be idempotent: React 19 StrictMode mounts → unmounts → remounts
  * components, so a VM may be disposed and re-created; double-dispose must be a no-op.
  */
-export interface ViewModel {
-  readonly store: StoreApi<unknown>
+export interface ViewModel<State = unknown> {
+  readonly store: StoreApi<State>
   dispose(): void
 }
 
@@ -33,7 +33,7 @@ export const useVM = <State, Slice>(
  * with an idempotent `dispose()`, this prevents leaking resources across React's
  * mount → unmount → remount double-invoke in development.
  */
-export const useOwnedViewModel = <VM extends ViewModel>(factory: () => VM): VM => {
+export const useOwnedViewModel = <VM extends { dispose(): void }>(factory: () => VM): VM => {
   const [vm] = useState(factory)
 
   useEffect(() => () => vm.dispose(), [vm])

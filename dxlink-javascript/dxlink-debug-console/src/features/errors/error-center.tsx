@@ -28,15 +28,19 @@ export const ErrorCenter = ({ errors, onClear }: ErrorCenterProps) => {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   const count = errors.length
 
+  // Nothing to show when there are no errors — hide the button entirely.
+  if (count === 0) {
+    return null
+  }
+
   return (
     <>
       <Badge badgeContent={count} color="error">
         <Button
-          color={count > 0 ? 'error' : 'inherit'}
+          color="error"
           variant="outlined"
           startIcon={<ErrorOutlineIcon />}
           onClick={(e) => setAnchor(e.currentTarget)}
-          disabled={count === 0}
         >
           Errors
         </Button>

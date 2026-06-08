@@ -1,8 +1,9 @@
 /**
- * Default dxLink WebSocket endpoint used in development (parity with the legacy
- * console, which points at the local relay when not running in production).
+ * Default dxLink WebSocket endpoint used in development — the shared dev relay,
+ * so the console connects to a real server out of the box (the page is served
+ * from localhost in dev, which is not itself a dxLink endpoint).
  */
-export const DEV_WS_URL = 'ws://localhost:9959/'
+export const DEV_WS_URL = 'wss://dxlink-md-ws-dev.dxkube.com'
 
 /** The subset of `Location` the URL derivation actually reads. */
 export type LocationLike = Pick<Location, 'protocol' | 'host' | 'pathname'>
@@ -30,6 +31,4 @@ export const deriveWsUrlFromLocation = (location: LocationLike): string => {
  * callers pass `import.meta.env.PROD` for the latter.
  */
 export const getDefaultWsUrl = (location: LocationLike, isProduction: boolean): string =>
-  isProduction
-    ? deriveWsUrlFromLocation(location)
-    : deriveWsUrlFromLocation(new URL(DEV_WS_URL) as unknown as LocationLike)
+  isProduction ? deriveWsUrlFromLocation(location) : DEV_WS_URL
