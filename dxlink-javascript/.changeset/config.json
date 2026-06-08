@@ -7,5 +7,5 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["**/dxlink-docs/**"]
+  "ignore": ["**/dxlink-docs/**", "**/dxlink-debug-console/**"]
 }

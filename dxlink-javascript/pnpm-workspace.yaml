@@ -7,6 +7,7 @@ packages:
   - dxlink-indichart
   - dxlink-rpc
   - dxlink-docs
+  - dxlink-debug-console
 # esbuild and unrs-resolver are native modules that need their install scripts.
 # The other flagged packages (protobufjs, styled-components) don't, so skip them.
 onlyBuiltDependencies:
