@@ -39,22 +39,32 @@ export class DomViewModel implements ViewModel<DomVMState> {
   }))
 
   private readonly client: DXLinkClient
-  private readonly params: { symbol: string; sources: string[] }
+  private readonly params: { symbol: string; sources: string[]; feed?: string; space?: string }
   private dom: DXLinkDepthOfMarket | null = null
   private pendingSnapshot: DomSnapshot | null = null
   private flushHandle: ReturnType<typeof setTimeout> | null = null
 
-  constructor(client: DXLinkClient, params: { symbol: string; sources: string[] }) {
+  constructor(
+    client: DXLinkClient,
+    params: { symbol: string; sources: string[]; feed?: string; space?: string }
+  ) {
     this.client = client
     this.params = params
   }
 
   start = (): void => {
     if (this.dom !== null) return
-    const dom = new DXLinkDepthOfMarket(this.client, {
-      symbol: this.params.symbol,
-      sources: this.params.sources,
-    })
+    const dom = new DXLinkDepthOfMarket(
+      this.client,
+      {
+        symbol: this.params.symbol,
+        sources: this.params.sources,
+      },
+      {
+        feed: this.params.feed,
+        space: this.params.space,
+      }
+    )
     dom.addSnapshotListener(this.handleSnapshot)
     dom.addConfigChangeListener(this.handleConfig)
     dom.addStateChangeListener(this.handleState)

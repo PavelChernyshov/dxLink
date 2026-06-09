@@ -224,7 +224,12 @@ export const DomChannel = ({ title, config }: DomChannelProps) => {
     if (client === null) {
       throw new Error('DOM channel opened without an active connection')
     }
-    return new DomViewModel(client, { symbol: config.symbol, sources: parseSources(config.source) })
+    return new DomViewModel(client, {
+      symbol: config.symbol,
+      sources: parseSources(config.source),
+      feed: config.feed || undefined,
+      space: config.space || undefined,
+    })
   })
   useEffect(() => {
     vm.start()
@@ -253,6 +258,10 @@ export const DomChannel = ({ title, config }: DomChannelProps) => {
             ))
           ) : (
             <Chip size="small" variant="outlined" label="sources: (default)" />
+          )}
+          {config.feed && <Chip size="small" variant="outlined" label={`feed: ${config.feed}`} />}
+          {config.space && (
+            <Chip size="small" variant="outlined" label={`space: ${config.space}`} />
           )}
         </Stack>
 

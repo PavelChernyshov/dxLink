@@ -71,7 +71,12 @@ export const ChannelsArea = () => {
     feed: '',
     space: '',
   })
-  const [domRequest, setDomRequest] = useState<DomRequest>({ symbol: 'AAPL', source: '' })
+  const [domRequest, setDomRequest] = useState<DomRequest>({
+    symbol: 'AAPL',
+    source: '',
+    feed: '',
+    space: '',
+  })
   const [indiRequest, setIndiRequest] = useState<IndiChartRequest>({
     indicators: [DEFAULT_INDICATOR_CODE],
   })
@@ -105,7 +110,13 @@ export const ChannelsArea = () => {
         space: feedRequest.space.trim(),
       }
     } else if (requestKind === 'dom') {
-      config = { kind: 'dom', symbol: domRequest.symbol.trim(), source: domRequest.source.trim() }
+      config = {
+        kind: 'dom',
+        symbol: domRequest.symbol.trim(),
+        source: domRequest.source.trim(),
+        feed: domRequest.feed.trim(),
+        space: domRequest.space.trim(),
+      }
     } else {
       config = { kind: 'indichart', indicators: indiRequest.indicators }
     }

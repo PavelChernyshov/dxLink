@@ -15,6 +15,10 @@ export interface DomConfig {
   kind: 'dom'
   symbol: string
   source: string
+  /** Feed qualification — omitted from the protocol when empty. */
+  feed: string
+  /** Feed space — omitted from the protocol when empty. */
+  space: string
 }
 
 export interface IndiChartConfig {
@@ -42,6 +46,8 @@ export interface FeedRequest {
 export interface DomRequest {
   symbol: string
   source: string
+  feed: string
+  space: string
 }
 
 export interface IndiChartRequest {
