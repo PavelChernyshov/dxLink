@@ -1,3 +1,5 @@
+import { FeedDataFormat } from '@dxfeed/dxlink-api'
+import type { FeedAcceptConfig, FeedEventFields } from '@dxfeed/dxlink-api'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
@@ -17,10 +19,8 @@ import Typography from '@mui/material/Typography'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 
-// ---------------------------------------------------------------------------
-// Configuration model — requested (FeedAcceptConfig) vs server-applied (FeedConfig)
-// ---------------------------------------------------------------------------
-type DataFormat = 'FULL' | 'COMPACT'
+import type { FeedViewModel } from './feed-view-model'
+import { useVM } from '../../shared/view-model'
 
 interface EventFieldRow {
   type: string
@@ -31,47 +31,21 @@ const INITIAL_FIELD_ROWS: EventFieldRow[] = [
   { type: 'Quote', fields: 'bidPrice, askPrice, bidSize, askSize' },
 ]
 
-interface AppliedConfig {
-  // NaN until the server reports an aggregation period.
-  aggregationPeriod: number
-  dataFormat: DataFormat
-  eventFields: Record<string, string[]>
-}
-
-const parseFields = (fields: string) =>
+const parseFields = (fields: string): string[] =>
   fields
     .split(',')
     .map((f) => f.trim())
     .filter(Boolean)
 
-/** Simulate the server resolving a requested config into the applied one. */
-const applyConfig = (
-  aggInput: string,
-  formatInput: '' | DataFormat,
-  rows: EventFieldRow[]
-): AppliedConfig => {
-  // Server keeps its own default when the period is left unset; otherwise it may
-  // clamp very small non-zero periods up to a minimum it supports (0 = no aggregation).
-  let aggregationPeriod = NaN
-  if (aggInput.trim() !== '') {
-    const requested = Number(aggInput)
-    aggregationPeriod =
-      Number.isFinite(requested) && requested > 0 && requested < 0.1 ? 0.1 : requested
-  }
-
-  const eventFields: Record<string, string[]> = {}
+/** Build acceptEventFields, re-prepending the mandatory eventType/eventSymbol. */
+const buildAcceptEventFields = (rows: EventFieldRow[]): FeedEventFields | undefined => {
+  const out: FeedEventFields = {}
   for (const row of rows) {
     const type = row.type.trim()
     if (type === '') continue
-    // The server always prepends the mandatory eventSymbol field.
-    eventFields[type] = Array.from(new Set(['eventSymbol', ...parseFields(row.fields)]))
+    out[type] = Array.from(new Set(['eventType', 'eventSymbol', ...parseFields(row.fields)]))
   }
-
-  return {
-    aggregationPeriod,
-    dataFormat: formatInput === '' ? 'FULL' : formatInput,
-    eventFields,
-  }
+  return Object.keys(out).length > 0 ? out : undefined
 }
 
 const EventFieldsEditor = ({
@@ -135,14 +109,24 @@ const DefRow = ({ label, value }: { label: string; value: ReactNode }) => (
   </Stack>
 )
 
-/** Requested (FeedAcceptConfig) vs server-applied (FeedConfig) configuration. */
-export const ConfigurationSection = () => {
-  const [aggPeriod, setAggPeriod] = useState('')
-  const [dataFormat, setDataFormat] = useState<'' | DataFormat>('')
-  const [fieldRows, setFieldRows] = useState<EventFieldRow[]>(INITIAL_FIELD_ROWS)
-  const [applied, setApplied] = useState<AppliedConfig | null>(null)
+/** Requested (FeedAcceptConfig) vs server-applied (FeedConfig) configuration, wired to the feed VM. */
+export const ConfigurationSection = ({ vm }: { vm: FeedViewModel }) => {
+  const applied = useVM(vm, (s) => s.config)
 
-  const apply = () => setApplied(applyConfig(aggPeriod, dataFormat, fieldRows))
+  const [aggPeriod, setAggPeriod] = useState('')
+  const [dataFormat, setDataFormat] = useState<'' | FeedDataFormat>('')
+  const [fieldRows, setFieldRows] = useState<EventFieldRow[]>(INITIAL_FIELD_ROWS)
+
+  const apply = () => {
+    const accept: FeedAcceptConfig = {
+      acceptAggregationPeriod: aggPeriod.trim() === '' ? undefined : Number(aggPeriod),
+      acceptDataFormat: dataFormat === '' ? undefined : dataFormat,
+      acceptEventFields: buildAcceptEventFields(fieldRows),
+    }
+    vm.configure(accept)
+  }
+
+  const appliedTypes = Object.entries(applied.eventFields)
 
   return (
     <Accordion disableGutters variant="outlined" sx={{ '&::before': { display: 'none' } }}>
@@ -179,15 +163,15 @@ export const ConfigurationSection = () => {
                 label="Data format"
                 select
                 value={dataFormat}
-                onChange={(e) => setDataFormat(e.target.value as '' | DataFormat)}
+                onChange={(e) => setDataFormat(e.target.value as '' | FeedDataFormat)}
                 size="small"
                 helperText="empty = server default"
               >
                 <MenuItem value="">
                   <em>Server default</em>
                 </MenuItem>
-                <MenuItem value="FULL">FULL</MenuItem>
-                <MenuItem value="COMPACT">COMPACT</MenuItem>
+                <MenuItem value={FeedDataFormat.FULL}>FULL</MenuItem>
+                <MenuItem value={FeedDataFormat.COMPACT}>COMPACT</MenuItem>
               </TextField>
             </Box>
             <Box>
@@ -208,29 +192,25 @@ export const ConfigurationSection = () => {
           {/* Applied — FeedConfig reported by the server */}
           <Stack spacing={2}>
             <Typography variant="subtitle2">Applied by server</Typography>
-            {applied === null ? (
-              <Typography variant="body2" color="text.secondary">
-                No FEED_CONFIG received yet. Apply a configuration to see what the server resolves.
-              </Typography>
-            ) : (
-              <Stack spacing={1.5}>
-                <Stack spacing={0.75}>
-                  <DefRow
-                    label="Aggregation period"
-                    value={
-                      Number.isNaN(applied.aggregationPeriod)
-                        ? 'default (server-defined)'
-                        : `${applied.aggregationPeriod} s`
-                    }
-                  />
-                  <DefRow label="Data format" value={applied.dataFormat} />
-                </Stack>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Event fields
-                  </Typography>
+            <Stack spacing={1.5}>
+              <Stack spacing={0.75}>
+                <DefRow
+                  label="Aggregation period"
+                  value={
+                    Number.isNaN(applied.aggregationPeriod)
+                      ? 'default (server-defined)'
+                      : `${applied.aggregationPeriod} s`
+                  }
+                />
+                <DefRow label="Data format" value={applied.dataFormat} />
+              </Stack>
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Event fields
+                </Typography>
+                {appliedTypes.length > 0 ? (
                   <Stack spacing={0.75} sx={{ mt: 0.75 }}>
-                    {Object.entries(applied.eventFields).map(([eventType, fields]) => (
+                    {appliedTypes.map(([eventType, fields]) => (
                       <Box key={eventType}>
                         <Typography variant="caption" sx={{ fontWeight: 600 }}>
                           {eventType}
@@ -248,9 +228,13 @@ export const ConfigurationSection = () => {
                       </Box>
                     ))}
                   </Stack>
-                </Box>
-              </Stack>
-            )}
+                ) : (
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    None reported yet.
+                  </Typography>
+                )}
+              </Box>
+            </Stack>
             <Typography variant="caption" color="text.secondary">
               What the server actually applied — may differ from the request.
             </Typography>

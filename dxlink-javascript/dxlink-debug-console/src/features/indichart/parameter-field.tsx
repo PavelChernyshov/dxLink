@@ -10,21 +10,31 @@ import Typography from '@mui/material/Typography'
 
 export type ParameterValue = number | string | boolean
 
-const toNumber = (value: JSONNumber): number => (typeof value === 'number' ? value : Number(value))
+const toNumber = (value: JSONNumber | undefined): number =>
+  typeof value === 'number' ? value : Number(value ?? 0)
 
-/** Initial value for a parameter: its current value, else its default. */
+/** Safely extract a hex color string from a (possibly missing) COLOR value. */
+const toColor = (raw: unknown): string => {
+  if (raw !== null && typeof raw === 'object' && 'value' in raw) {
+    return String((raw as { value: unknown }).value)
+  }
+  return typeof raw === 'string' ? raw : '#3b6fed'
+}
+
+/** Initial value for a parameter: its current value, else its default. Null-safe — the
+ * server's parameter metadata is dynamic and may omit fields, so this never throws. */
 export const initialParameterValue = (
   meta: DXLinkIndiChartIndicatorParameterMeta
 ): ParameterValue => {
   switch (meta.type) {
     case 'COLOR':
-      return (meta.value ?? meta.defaultValue).value
+      return toColor(meta.value ?? meta.defaultValue)
     case 'DOUBLE':
       return toNumber(meta.value ?? meta.defaultValue)
     case 'BOOL':
-      return meta.value ?? meta.defaultValue
+      return meta.value ?? meta.defaultValue ?? false
     default:
-      return meta.value ?? meta.defaultValue
+      return meta.value ?? meta.defaultValue ?? ''
   }
 }
 
@@ -92,7 +102,7 @@ export const ParameterField = ({ meta, value, onChange }: ParameterFieldProps) =
   }
 
   if (meta.type === 'COLOR') {
-    const hex = typeof value === 'string' ? value : (meta.value ?? meta.defaultValue).value
+    const hex = typeof value === 'string' ? value : toColor(meta.value ?? meta.defaultValue)
     return (
       <TextField
         label={meta.name}

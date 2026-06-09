@@ -11,17 +11,13 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import Typography from '@mui/material/Typography'
 import { useState } from 'react'
 
-// ---------------------------------------------------------------------------
-// Subscription model — mirrors dxlink-feed's three subscription shapes:
-//   Subscription            { type, symbol }            (regular)
-//   IndexedEventSubscription{ type, symbol, source }    (indexed)
-//   TimeSeriesSubscription  { type, symbol, fromTime }  (time series)
-// ---------------------------------------------------------------------------
-type SubKind = 'regular' | 'indexed' | 'timeSeries'
+import { feedSubKey } from './feed-view-model'
+import type { FeedSubKind, FeedSubscriptionInput, FeedViewModel } from './feed-view-model'
+import { useVM } from '../../shared/view-model'
 
 // The channel always uses the default AUTO contract, which accepts all three
 // subscription shapes.
-const SUB_KINDS: { value: SubKind; label: string }[] = [
+const SUB_KINDS: { value: FeedSubKind; label: string }[] = [
   { value: 'regular', label: 'Regular' },
   { value: 'indexed', label: 'Indexed' },
   { value: 'timeSeries', label: 'Time series' },
@@ -44,38 +40,22 @@ const EVENT_TYPES = [
   'OptionSale',
 ]
 
-interface SubEntry {
-  type: string
-  symbol: string
-  kind: SubKind
-  source: string
-  fromTime: string
-}
-
-/** Dedup key, mirroring the feed's getSubscriptionKey: `type[#source]:symbol`. */
-const subKey = (s: SubEntry) => `${s.type}${s.kind === 'indexed' ? `#${s.source}` : ''}:${s.symbol}`
-
 /** Human label for a subscription chip. */
-const subLabel = (s: SubEntry) => {
+const subLabel = (s: FeedSubscriptionInput): string => {
   const base =
     s.kind === 'indexed' && s.source ? `${s.type}#${s.source}:${s.symbol}` : `${s.type}:${s.symbol}`
-  return s.kind === 'timeSeries' ? `${base} · from ${s.fromTime || '0'}` : base
+  return s.kind === 'timeSeries' ? `${base} · from ${s.fromTime ?? 0}` : base
 }
 
-const INITIAL_SUBS: SubEntry[] = [
-  { type: 'Quote', symbol: 'AAPL', kind: 'regular', source: '', fromTime: '0' },
-  { type: 'Quote', symbol: 'MSFT', kind: 'regular', source: '', fromTime: '0' },
-  { type: 'Candle', symbol: 'AAPL{=d}', kind: 'timeSeries', source: '', fromTime: '0' },
-]
+/** Subscription form + active-subscription list (add / remove / clear), wired to the feed VM. */
+export const SubscriptionManager = ({ vm }: { vm: FeedViewModel }) => {
+  const subs = useVM(vm, (s) => s.subscriptions)
 
-/** Subscription form + active-subscription list (add / remove / clear). */
-export const SubscriptionManager = () => {
-  const [kind, setKind] = useState<SubKind>('regular')
+  const [kind, setKind] = useState<FeedSubKind>('regular')
   const [type, setType] = useState('Quote')
   const [symbol, setSymbol] = useState('')
   const [source, setSource] = useState('')
   const [fromTime, setFromTime] = useState('0')
-  const [subs, setSubs] = useState<SubEntry[]>(INITIAL_SUBS)
 
   const showSource = kind === 'indexed'
   const showFromTime = kind === 'timeSeries'
@@ -85,24 +65,14 @@ export const SubscriptionManager = () => {
 
   const addSubscription = () => {
     if (!canAdd) return
-    const entry: SubEntry = {
+    vm.addSubscription({
       type: type.trim(),
       symbol: symbol.trim(),
       kind,
-      source: source.trim(),
-      fromTime: fromTime.trim() || '0',
-    }
-    setSubs((current) => {
-      const key = subKey(entry)
-      if (current.some((s) => subKey(s) === key)) return current
-      return [...current, entry]
+      source: showSource ? source.trim() : undefined,
+      fromTime: showFromTime ? Number(fromTime) || 0 : undefined,
     })
   }
-
-  const removeSubscription = (key: string) =>
-    setSubs((current) => current.filter((s) => subKey(s) !== key))
-
-  const clearSubscriptions = () => setSubs([])
 
   return (
     <Box>
@@ -115,7 +85,7 @@ export const SubscriptionManager = () => {
           exclusive
           size="small"
           value={kind}
-          onChange={(_e, next: SubKind | null) => next !== null && setKind(next)}
+          onChange={(_e, next: FeedSubKind | null) => next !== null && setKind(next)}
         >
           {SUB_KINDS.map((k) => (
             <ToggleButton key={k.value} value={k.value}>
@@ -196,7 +166,7 @@ export const SubscriptionManager = () => {
           size="small"
           color="inherit"
           startIcon={<DeleteSweepIcon />}
-          onClick={clearSubscriptions}
+          onClick={vm.clearSubscriptions}
           disabled={subs.length === 0}
         >
           Clear all
@@ -204,19 +174,16 @@ export const SubscriptionManager = () => {
       </Stack>
       {subs.length > 0 ? (
         <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: 'wrap', mt: 1 }}>
-          {subs.map((s) => {
-            const key = subKey(s)
-            return (
-              <Chip
-                key={key}
-                label={subLabel(s)}
-                onDelete={() => removeSubscription(key)}
-                size="small"
-                variant="outlined"
-                color={s.kind === 'regular' ? 'default' : 'primary'}
-              />
-            )
-          })}
+          {subs.map((s) => (
+            <Chip
+              key={feedSubKey(s)}
+              label={subLabel(s)}
+              onDelete={() => vm.removeSubscription(s)}
+              size="small"
+              variant="outlined"
+              color={s.kind === 'regular' ? 'default' : 'primary'}
+            />
+          ))}
         </Stack>
       ) : (
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>

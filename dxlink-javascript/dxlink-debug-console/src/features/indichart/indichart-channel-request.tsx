@@ -10,28 +10,12 @@ import TextField from '@mui/material/TextField'
 import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 
+import { DEFAULT_INDICATOR_CODE, getSampleContent, listSamples } from './samples'
 import { MAX_INDICATORS } from '../channels/types'
 import type { IndiChartRequest } from '../channels/types'
 
-const SAMPLES = [
-  {
-    id: 'sma',
-    label: 'Simple Moving Average',
-    code: '// Simple Moving Average\ninput length: number = 14\nplot SMA = sma(close, length)',
-  },
-  {
-    id: 'ema',
-    label: 'Exponential Moving Average',
-    code: '// Exponential Moving Average\ninput length: number = 21\nplot EMA = ema(close, length)',
-  },
-  {
-    id: 'rsi',
-    label: 'Relative Strength Index',
-    code: '// Relative Strength Index\ninput length: number = 14\nplot RSI = rsi(close, length)',
-  },
-]
-
-const sampleCode = (id: string): string => SAMPLES.find((s) => s.id === id)?.code ?? ''
+// The official dxScript indicator samples (same set as the dxlink-docs editor).
+const SAMPLES = listSamples()
 
 interface IndiChartChannelRequestProps {
   value: IndiChartRequest
@@ -43,7 +27,7 @@ export const IndiChartChannelRequest = ({ value, onChange }: IndiChartChannelReq
   const setAt = (index: number, code: string) =>
     onChange({ indicators: value.indicators.map((c, i) => (i === index ? code : c)) })
 
-  const add = () => onChange({ indicators: [...value.indicators, sampleCode('sma')] })
+  const add = () => onChange({ indicators: [...value.indicators, DEFAULT_INDICATOR_CODE] })
 
   const remove = (index: number) =>
     onChange({ indicators: value.indicators.filter((_c, i) => i !== index) })
@@ -66,15 +50,15 @@ export const IndiChartChannelRequest = ({ value, onChange }: IndiChartChannelReq
                   select
                   size="small"
                   value=""
-                  sx={{ minWidth: 200 }}
-                  onChange={(e) => setAt(index, sampleCode(e.target.value))}
+                  sx={{ minWidth: 220 }}
+                  onChange={(e) => setAt(index, getSampleContent(e.target.value))}
                 >
                   <MenuItem value="" disabled>
                     Insert example…
                   </MenuItem>
                   {SAMPLES.map((sample) => (
-                    <MenuItem key={sample.id} value={sample.id}>
-                      {sample.label}
+                    <MenuItem key={sample.name} value={sample.name}>
+                      {sample.title}
                     </MenuItem>
                   ))}
                 </TextField>

@@ -1,13 +1,12 @@
-import type {
-  DXLinkIndiChartIndicatorParameterMeta,
-  DXLinkIndiChartIndicatorState,
-} from '@dxfeed/dxlink-api'
+import { DXLinkChannelState } from '@dxfeed/dxlink-api'
+import type { DXLinkIndiChartIndicatorState } from '@dxfeed/dxlink-api'
+import { IndiChart } from '@dxscript/dxlink-dxcharts-lite'
+import type { IndiChartHandle } from '@dxscript/dxlink-dxcharts-lite'
 import CheckCircleIcon from '@mui/icons-material/CheckCircleOutlineOutlined'
 import ErrorIcon from '@mui/icons-material/ErrorOutlineOutlined'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import InsightsIcon from '@mui/icons-material/Insights'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
-import ShowChartIcon from '@mui/icons-material/ShowChart'
 import Accordion from '@mui/material/Accordion'
 import AccordionDetails from '@mui/material/AccordionDetails'
 import AccordionSummary from '@mui/material/AccordionSummary'
@@ -16,86 +15,62 @@ import AlertTitle from '@mui/material/AlertTitle'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
+import type { ChipProps } from '@mui/material/Chip'
 import Divider from '@mui/material/Divider'
 import Stack from '@mui/material/Stack'
+import { styled } from '@mui/material/styles'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
+import { IndiChartViewModel } from './indichart-view-model'
+import type { IndicatorOutputKind, IndicatorOutputMeta } from './indichart-view-model'
 import { ParameterField, initialParameterValue } from './parameter-field'
 import type { ParameterValue } from './parameter-field'
-import { Placeholder } from '../../shared/components/placeholder'
+import { useVM } from '../../shared/view-model'
 import { ChannelWidget } from '../channels/channel-widget'
 import type { IndiChartConfig } from '../channels/types'
+import { useConnectionVM } from '../connection/connection-context'
 
-// --- Draft mock of the indicator state the server reports after compilation. ---
-const SAMPLE_IN_PARAMS: DXLinkIndiChartIndicatorParameterMeta[] = [
-  { name: 'length', type: 'DOUBLE', defaultValue: 14, min: 1, max: 200, step: 1 },
-  {
-    name: 'source',
-    type: 'SOURCE',
-    defaultValue: 'close',
-    options: ['open', 'high', 'low', 'close'],
-  },
-  { name: 'maType', type: 'ENUM', defaultValue: 'SMA', options: ['SMA', 'EMA', 'WMA'] },
-  { name: 'lineColor', type: 'COLOR', defaultValue: { value: '#3b6fed' } },
-  { name: 'showSignals', type: 'BOOL', defaultValue: true },
-]
+import '@dxscript/dxlink-dxcharts-lite/styles.css'
 
-const SAMPLE_OUT_PARAMS: DXLinkIndiChartIndicatorParameterMeta[] = [
-  { name: 'out', type: 'DOUBLE', defaultValue: 0 },
-]
+type ParamValues = Record<string, Record<string, ParameterValue>>
 
-const MOCK_ERROR_STATE: DXLinkIndiChartIndicatorState = {
-  enabled: false,
-  scriptError: {
-    type: 'CompilationError',
-    message: "Unresolved reference: 'smaa'. Did you mean 'sma'?",
-    scriptName: 'indicator',
-    startLine: 3,
-    startColumn: 12,
-    endLine: 3,
-    endColumn: 16,
-    scriptStack: [],
-  },
-}
+const ChartSurface = styled(IndiChart)({ height: 420, width: '100%' })
 
 interface IndicatorEntry {
   name: string
   code: string
-  state: DXLinkIndiChartIndicatorState
+  state: DXLinkIndiChartIndicatorState | undefined
+  /** Declared outputs (output/spline/shape/barColor/backgroundColor) from the indicator state. */
+  outputs: IndicatorOutputMeta[]
 }
 
-// The second indicator (if any) is mocked as a compile error to exercise the
-// error UI; the rest compile with a representative set of input parameters.
-const buildEntries = (indicators: string[]): IndicatorEntry[] =>
-  indicators.map((code, index) => ({
-    name: String(index + 1),
-    code,
-    state:
-      index === 1
-        ? MOCK_ERROR_STATE
-        : { enabled: true, inParameters: SAMPLE_IN_PARAMS, outParameters: SAMPLE_OUT_PARAMS },
-  }))
+// Distinct chip color per output kind.
+const OUTPUT_COLOR: Record<IndicatorOutputKind, ChipProps['color']> = {
+  output: 'primary',
+  spline: 'info',
+  shape: 'secondary',
+  barColor: 'warning',
+  backgroundColor: 'success',
+}
 
-type ParamValues = Record<string, Record<string, ParameterValue>>
+/** Meta line for one output: title/id · style · overlay/separate · offset. */
+const outputMetaLabel = (output: IndicatorOutputMeta): string =>
+  [
+    output.title ?? (output.id !== undefined ? `#${output.id}` : null),
+    output.style,
+    output.overlay === undefined ? null : output.overlay ? 'overlay' : 'separate',
+    output.offset ? `offset ${output.offset}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
-const buildInitialValues = (entries: IndicatorEntry[]): ParamValues => {
-  const values: ParamValues = {}
-  for (const entry of entries) {
-    if (entry.state.enabled) {
-      const params: Record<string, ParameterValue> = {}
-      for (const meta of entry.state.inParameters) {
-        params[meta.name] = initialParameterValue(meta)
-      }
-      values[entry.name] = params
-    }
+const StatusChip = ({ state }: { state: DXLinkIndiChartIndicatorState | undefined }) => {
+  if (state === undefined) {
+    return <Chip size="small" variant="outlined" label="pending" />
   }
-  return values
-}
-
-const StatusChip = ({ enabled }: { enabled: boolean }) =>
-  enabled ? (
+  return state.enabled ? (
     <Chip
       size="small"
       color="success"
@@ -106,6 +81,16 @@ const StatusChip = ({ enabled }: { enabled: boolean }) =>
   ) : (
     <Chip size="small" color="error" variant="outlined" icon={<ErrorIcon />} label="error" />
   )
+}
+
+const indicatorSummary = (entry: IndicatorEntry): string => {
+  const { state, outputs } = entry
+  if (state === undefined) return 'apply a subscription to compile'
+  if (!state.enabled) return 'compilation error'
+  const inN = state.inParameters?.length ?? 0
+  const outN = outputs.length
+  return `${inN} input${inN === 1 ? '' : 's'} · ${outN} output${outN === 1 ? '' : 's'}`
+}
 
 const IndicatorPanel = ({
   entry,
@@ -121,9 +106,6 @@ const IndicatorPanel = ({
   onParam: (name: string, value: ParameterValue) => void
 }) => {
   const { name, code, state } = entry
-  const summary = state.enabled
-    ? `${state.inParameters.length} inputs · ${state.outParameters.length} outputs`
-    : 'compilation error'
 
   return (
     <Accordion
@@ -146,9 +128,9 @@ const IndicatorPanel = ({
         >
           <Typography sx={{ fontWeight: 600 }}>Indicator {name}</Typography>
           <Typography variant="caption" color="text.secondary" noWrap sx={{ flexGrow: 1 }}>
-            {summary}
+            {indicatorSummary(entry)}
           </Typography>
-          <StatusChip enabled={state.enabled} />
+          <StatusChip state={state} />
         </Box>
       </AccordionSummary>
       <AccordionDetails>
@@ -175,9 +157,9 @@ const IndicatorPanel = ({
           </AccordionDetails>
         </Accordion>
 
-        {state.enabled ? (
+        {state !== undefined && state.enabled && (
           <Stack spacing={1.5} sx={{ mt: 1.5 }}>
-            {state.inParameters.length > 0 && (
+            {(state.inParameters ?? []).length > 0 && (
               <Box>
                 <Typography variant="caption" color="text.secondary">
                   Inputs
@@ -187,12 +169,10 @@ const IndicatorPanel = ({
                     display: 'grid',
                     gap: 1.5,
                     mt: 1.25,
-                    // Auto-fit columns: as many ~240px tracks as fit, collapsing
-                    // to one input per line on narrow widths.
                     gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
                   }}
                 >
-                  {state.inParameters.map((meta) => (
+                  {(state.inParameters ?? []).map((meta) => (
                     <ParameterField
                       key={meta.name}
                       meta={meta}
@@ -203,25 +183,51 @@ const IndicatorPanel = ({
                 </Box>
               </Box>
             )}
-            {state.outParameters.length > 0 && (
+            {entry.outputs.length > 0 && (
               <Box>
                 <Typography variant="caption" color="text.secondary">
                   Outputs
                 </Typography>
-                <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: 'wrap', mt: 1.25 }}>
-                  {state.outParameters.map((meta) => (
-                    <Chip
-                      key={meta.name}
-                      size="small"
-                      variant="outlined"
-                      label={`${meta.name} · ${meta.type}`}
-                    />
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gap: 1,
+                    mt: 1,
+                    // Fill the width: as many ~200px columns as fit, wrapping the rest.
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                  }}
+                >
+                  {entry.outputs.map((output, index) => (
+                    <Stack
+                      key={`${output.kind}:${output.id ?? output.title ?? index}`}
+                      direction="row"
+                      spacing={1}
+                      sx={{ alignItems: 'center', minWidth: 0 }}
+                    >
+                      <Chip
+                        size="small"
+                        color={OUTPUT_COLOR[output.kind]}
+                        variant="outlined"
+                        label={output.kind}
+                        sx={{ flexShrink: 0 }}
+                      />
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        noWrap
+                        sx={{ minWidth: 0, textOverflow: 'ellipsis', overflow: 'hidden' }}
+                      >
+                        {outputMetaLabel(output)}
+                      </Typography>
+                    </Stack>
                   ))}
-                </Stack>
+                </Box>
               </Box>
             )}
           </Stack>
-        ) : (
+        )}
+
+        {state !== undefined && !state.enabled && (
           <Alert severity="error" variant="outlined" sx={{ mt: 1.5 }}>
             <AlertTitle>{state.scriptError?.type ?? 'Compilation error'}</AlertTitle>
             {state.scriptError ? (
@@ -256,17 +262,67 @@ interface IndiChartChannelProps {
   config: IndiChartConfig
 }
 
-/** IndiChart channel view (draft / presentational only). */
+/** Live IndiChart channel — wraps {@link IndiChartViewModel} + the dxcharts IndiChart. */
 export const IndiChartChannel = ({ title, config }: IndiChartChannelProps) => {
-  const entries = buildEntries(config.indicators)
+  const connectionVM = useConnectionVM()
+  const [vm] = useState(() => {
+    const client = connectionVM.getClient()
+    if (client === null) {
+      throw new Error('IndiChart channel opened without an active connection')
+    }
+    return new IndiChartViewModel(client, config.indicators)
+  })
 
+  const chartRef = useRef<IndiChartHandle>(null)
+  const [resetKey, setResetKey] = useState(0)
   const [symbol, setSymbol] = useState('AAPL{=d}')
   const [fromTime, setFromTime] = useState('0')
-  const [values, setValues] = useState<ParamValues>(() => buildInitialValues(entries))
-  // Indicators are collapsed by default; this set holds the expanded ones.
+  const [values, setValues] = useState<ParamValues>({})
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set())
+  const [chartError, setChartError] = useState<string | null>(null)
+  const [hasData, setHasData] = useState(false)
 
-  const errorCount = entries.filter((entry) => !entry.state.enabled).length
+  useEffect(() => {
+    vm.start()
+    vm.setChartListener((candles, indicators, dataType) => {
+      chartRef.current?.pushData(candles, indicators, dataType)
+      if (candles.length > 0) setHasData(true)
+    })
+    return () => {
+      vm.setChartListener(null)
+      vm.stop()
+    }
+  }, [vm])
+
+  const channelState = useVM(vm, (s) => s.channelState)
+  const indicatorStates = useVM(vm, (s) => s.indicatorStates)
+  const indicatorOutputs = useVM(vm, (s) => s.outputs)
+  const subscription = useVM(vm, (s) => s.subscription)
+
+  // Seed parameter values from the inParameters defaults as states arrive.
+  useEffect(() => {
+    if (indicatorStates === null) return
+    setValues((prev) => {
+      const next = { ...prev }
+      for (const [name, state] of Object.entries(indicatorStates)) {
+        if (state.enabled && next[name] === undefined) {
+          const params: Record<string, ParameterValue> = {}
+          for (const meta of state.inParameters ?? []) {
+            params[meta.name] = initialParameterValue(meta)
+          }
+          next[name] = params
+        }
+      }
+      return next
+    })
+  }, [indicatorStates])
+
+  const entries: IndicatorEntry[] = config.indicators.map((code, index) => {
+    const name = String(index + 1)
+    return { name, code, state: indicatorStates?.[name], outputs: indicatorOutputs[name] ?? [] }
+  })
+
+  const errorCount = entries.filter((e) => e.state !== undefined && !e.state.enabled).length
 
   const setParam = (indicator: string, name: string, value: ParameterValue) =>
     setValues((prev) => ({ ...prev, [indicator]: { ...(prev[indicator] ?? {}), [name]: value } }))
@@ -274,34 +330,46 @@ export const IndiChartChannel = ({ title, config }: IndiChartChannelProps) => {
   const setIndicatorExpanded = (name: string, isExpanded: boolean) =>
     setExpanded((prev) => {
       const next = new Set(prev)
-      if (isExpanded) {
-        next.add(name)
-      } else {
-        next.delete(name)
-      }
+      if (isExpanded) next.add(name)
+      else next.delete(name)
       return next
     })
 
-  const expandAll = () => setExpanded(new Set(entries.map((entry) => entry.name)))
-  const collapseAll = () => setExpanded(new Set())
+  const apply = () => {
+    setChartError(null)
+    setHasData(false)
+    chartRef.current?.reset()
+    setResetKey((k) => k + 1)
+    const parameters: Record<string, Record<string, ParameterValue>> = {}
+    for (const [name, params] of Object.entries(values)) {
+      parameters[name] = params
+    }
+    vm.apply(symbol.trim(), Number(fromTime) || 0, parameters)
+  }
+
+  const statusChip =
+    channelState === DXLinkChannelState.CLOSED ? (
+      <Chip size="small" variant="outlined" label="closed" />
+    ) : errorCount > 0 ? (
+      <Chip
+        size="small"
+        color="error"
+        variant="outlined"
+        label={`${errorCount} error${errorCount === 1 ? '' : 's'}`}
+      />
+    ) : subscription !== null && channelState === DXLinkChannelState.OPENED ? (
+      <Chip size="small" color="success" variant="outlined" label="running" />
+    ) : (
+      <Chip size="small" color="warning" variant="outlined" label="ready" />
+    )
 
   return (
     <ChannelWidget
       icon={<InsightsIcon />}
       title={title}
       subtitle={`IndiChart · ${entries.length} indicator${entries.length === 1 ? '' : 's'}`}
-      status={
-        errorCount > 0 ? (
-          <Chip
-            size="small"
-            color="error"
-            variant="outlined"
-            label={`${errorCount} error${errorCount === 1 ? '' : 's'}`}
-          />
-        ) : (
-          <Chip size="small" color="success" variant="outlined" label="running" />
-        )
-      }
+      onClose={vm.close}
+      status={statusChip}
     >
       <Stack spacing={2}>
         <Box>
@@ -321,14 +389,22 @@ export const IndiChartChannel = ({ title, config }: IndiChartChannelProps) => {
               value={symbol}
               onChange={(e) => setSymbol(e.target.value)}
               size="small"
+              helperText="Candle symbol, e.g. AAPL{=d}"
             />
             <TextField
               label="From time"
               value={fromTime}
-              onChange={(e) => setFromTime(e.target.value)}
+              onChange={(e) => setFromTime(e.target.value.replace(/[^0-9]/g, ''))}
               size="small"
+              helperText="Unix ms, or 0 for full history"
             />
-            <Button variant="contained" startIcon={<PlayArrowIcon />}>
+            <Button
+              variant="contained"
+              startIcon={<PlayArrowIcon />}
+              onClick={apply}
+              disabled={symbol.trim() === ''}
+              sx={{ height: 40 }}
+            >
               Apply
             </Button>
           </Box>
@@ -350,7 +426,7 @@ export const IndiChartChannel = ({ title, config }: IndiChartChannelProps) => {
               <Button
                 size="small"
                 color="inherit"
-                onClick={expandAll}
+                onClick={() => setExpanded(new Set(entries.map((e) => e.name)))}
                 disabled={expanded.size === entries.length}
               >
                 Expand all
@@ -358,7 +434,7 @@ export const IndiChartChannel = ({ title, config }: IndiChartChannelProps) => {
               <Button
                 size="small"
                 color="inherit"
-                onClick={collapseAll}
+                onClick={() => setExpanded(new Set())}
                 disabled={expanded.size === 0}
               >
                 Collapse all
@@ -379,11 +455,43 @@ export const IndiChartChannel = ({ title, config }: IndiChartChannelProps) => {
           </Stack>
         </Box>
 
-        <Placeholder
-          icon={<ShowChartIcon fontSize="large" />}
-          label="Candles + indicators render here (dxcharts-lite)"
-          height={300}
-        />
+        {chartError !== null && (
+          <Alert severity="error" variant="outlined">
+            {chartError}
+          </Alert>
+        )}
+
+        <Box>
+          <Box sx={{ position: 'relative' }}>
+            <ChartSurface ref={chartRef} resetKey={resetKey} onIndicatorError={setChartError} />
+            {!hasData && (
+              <Stack
+                spacing={1}
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'text.secondary',
+                  bgcolor: 'background.paper',
+                  border: '1px dashed',
+                  borderColor: 'divider',
+                  borderRadius: 2,
+                }}
+              >
+                <InsightsIcon fontSize="large" />
+                <Typography variant="body2">
+                  {subscription === null
+                    ? 'Apply a subscription to load the chart.'
+                    : 'Loading candles…'}
+                </Typography>
+              </Stack>
+            )}
+          </Box>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+            Chart powered by DXCharts.
+          </Typography>
+        </Box>
       </Stack>
     </ChannelWidget>
   )

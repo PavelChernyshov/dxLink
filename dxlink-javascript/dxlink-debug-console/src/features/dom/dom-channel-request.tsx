@@ -21,12 +21,12 @@ export const DomChannelRequest = ({ value, onChange }: DomChannelRequestProps) =
       helperText="Subscription symbol for Depth of Market."
     />
     <TextField
-      label="Source"
+      label="Sources"
       value={value.source}
       onChange={(e) => onChange({ ...value, source: e.target.value })}
       size="small"
       fullWidth
-      helperText="Order source for Depth of Market (e.g. NTV, DEX)."
+      helperText="Order sources, comma/space separated (e.g. NTV, DEX). Empty = server default."
     />
   </Stack>
 )

@@ -49,7 +49,3 @@ export interface IndiChartRequest {
 }
 
 export const MAX_INDICATORS = 10
-
-export const DEFAULT_INDICATOR_CODE = `// Simple Moving Average
-input length: number = 14
-plot SMA = sma(close, length)`

@@ -1,0 +1,184 @@
+import { DXLinkChannelState } from '@dxfeed/dxlink-api'
+import { IndiChart } from '@dxscript/dxlink-dxcharts-lite'
+import type { IndiChartHandle } from '@dxscript/dxlink-dxcharts-lite'
+import CandlestickChartIcon from '@mui/icons-material/CandlestickChart'
+import PlayArrowIcon from '@mui/icons-material/PlayArrow'
+import ShowChartIcon from '@mui/icons-material/ShowChart'
+import Alert from '@mui/material/Alert'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import Chip from '@mui/material/Chip'
+import Stack from '@mui/material/Stack'
+import { styled } from '@mui/material/styles'
+import TextField from '@mui/material/TextField'
+import Typography from '@mui/material/Typography'
+import { useEffect, useRef, useState } from 'react'
+
+import { ConfigChips } from './config-chips'
+import { FeedCandlesViewModel } from './feed-candles-view-model'
+import { useVM } from '../../shared/view-model'
+import { ChannelWidget } from '../channels/channel-widget'
+import type { FeedConfig } from '../channels/types'
+import { useConnectionVM } from '../connection/connection-context'
+
+import '@dxscript/dxlink-dxcharts-lite/styles.css'
+
+interface FeedChartChannelProps {
+  title: string
+  config: FeedConfig
+}
+
+// The chart's container needs an intrinsic height; `styled` applies it via the
+// component's `className` prop (which the chart spreads onto its container div).
+const ChartSurface = styled(IndiChart)({
+  height: 360,
+  width: '100%',
+})
+
+const StatusChip = ({ state }: { state: DXLinkChannelState }) => {
+  if (state === DXLinkChannelState.OPENED) {
+    return <Chip size="small" color="success" variant="outlined" label="opened" />
+  }
+  if (state === DXLinkChannelState.CLOSED) {
+    return <Chip size="small" variant="outlined" label="closed" />
+  }
+  return <Chip size="small" color="warning" variant="outlined" label="opening" />
+}
+
+/** Live Feed candle-chart view — wraps {@link FeedCandlesViewModel} + the dxcharts IndiChart. */
+export const FeedChartChannel = ({ title, config }: FeedChartChannelProps) => {
+  const connectionVM = useConnectionVM()
+  const [vm] = useState(() => {
+    const client = connectionVM.getClient()
+    if (client === null) {
+      throw new Error('Feed chart channel opened without an active connection')
+    }
+    return new FeedCandlesViewModel(client)
+  })
+
+  const chartRef = useRef<IndiChartHandle>(null)
+  const [resetKey, setResetKey] = useState(0)
+  const [symbol, setSymbol] = useState('AAPL{=d}')
+  const [fromTime, setFromTime] = useState('0')
+  const [chartError, setChartError] = useState<string | null>(null)
+
+  useEffect(() => {
+    vm.start()
+    vm.setChartListener((candles, dataType) => chartRef.current?.pushData(candles, [], dataType))
+    return () => {
+      vm.setChartListener(null)
+      vm.stop()
+    }
+  }, [vm])
+
+  const channelState = useVM(vm, (s) => s.channelState)
+  const subscription = useVM(vm, (s) => s.subscription)
+  const candleCount = useVM(vm, (s) => s.candleCount)
+
+  const subscribe = () => {
+    setChartError(null)
+    chartRef.current?.reset()
+    setResetKey((k) => k + 1)
+    vm.setSubscription(symbol.trim(), Number(fromTime) || 0)
+  }
+
+  return (
+    <ChannelWidget
+      icon={<ShowChartIcon />}
+      title={title}
+      subtitle="Feed · candle chart"
+      onClose={vm.close}
+      status={<StatusChip state={channelState} />}
+    >
+      <Stack spacing={2}>
+        <ConfigChips config={config} />
+
+        <Box>
+          <Typography variant="subtitle2" gutterBottom>
+            Candle subscription
+          </Typography>
+          <Box
+            sx={{
+              display: 'grid',
+              gap: 1.5,
+              alignItems: 'start',
+              gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr) auto' },
+            }}
+          >
+            <TextField
+              label="Candle symbol"
+              value={symbol}
+              onChange={(e) => setSymbol(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && subscribe()}
+              size="small"
+              helperText="Candle symbol, e.g. AAPL{=d}"
+            />
+            <TextField
+              label="From time"
+              value={fromTime}
+              onChange={(e) => setFromTime(e.target.value.replace(/[^0-9]/g, ''))}
+              size="small"
+              helperText="Unix ms, or 0 for full history"
+            />
+            <Button
+              variant="contained"
+              startIcon={<PlayArrowIcon />}
+              onClick={subscribe}
+              disabled={symbol.trim() === ''}
+              sx={{ height: 40 }}
+            >
+              Subscribe
+            </Button>
+          </Box>
+        </Box>
+
+        {chartError !== null && (
+          <Alert severity="error" variant="outlined">
+            {chartError}
+          </Alert>
+        )}
+
+        <Box>
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{ alignItems: 'baseline', justifyContent: 'space-between', mb: 1 }}
+          >
+            <Typography variant="caption" color="text.secondary">
+              {subscription
+                ? `${subscription.symbol} · ${candleCount} candle${candleCount === 1 ? '' : 's'}`
+                : 'Set a subscription to load candles.'}
+            </Typography>
+          </Stack>
+          <Box sx={{ position: 'relative' }}>
+            <ChartSurface ref={chartRef} resetKey={resetKey} onIndicatorError={setChartError} />
+            {candleCount === 0 && (
+              <Stack
+                spacing={1}
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'text.secondary',
+                  bgcolor: 'background.paper',
+                  border: '1px dashed',
+                  borderColor: 'divider',
+                  borderRadius: 2,
+                }}
+              >
+                <CandlestickChartIcon fontSize="large" />
+                <Typography variant="body2">
+                  {subscription === null ? 'Subscribe to load candles.' : 'Loading candles…'}
+                </Typography>
+              </Stack>
+            )}
+          </Box>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+            Chart powered by DXCharts.
+          </Typography>
+        </Box>
+      </Stack>
+    </ChannelWidget>
+  )
+}

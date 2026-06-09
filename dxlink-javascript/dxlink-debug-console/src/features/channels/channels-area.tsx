@@ -22,13 +22,13 @@ import type {
   FeedRequest,
   IndiChartRequest,
 } from './types'
-import { DEFAULT_INDICATOR_CODE } from './types'
 import { DomChannel } from '../dom/dom-channel'
 import { DomChannelRequest } from '../dom/dom-channel-request'
 import { FeedChannel } from '../feed/feed-channel'
 import { FeedChannelRequest } from '../feed/feed-channel-request'
 import { IndiChartChannel } from '../indichart/indichart-channel'
 import { IndiChartChannelRequest } from '../indichart/indichart-channel-request'
+import { DEFAULT_INDICATOR_CODE } from '../indichart/samples'
 
 const ADD_BUTTONS: { kind: ChannelKind; label: string; icon: ReactNode }[] = [
   { kind: 'feed', label: 'Feed', icon: <ShowChartIcon /> },

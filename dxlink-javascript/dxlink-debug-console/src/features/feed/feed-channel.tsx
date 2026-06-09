@@ -1,86 +1,81 @@
-import AddIcon from '@mui/icons-material/Add'
-import CandlestickChartIcon from '@mui/icons-material/CandlestickChart'
+import { DXLinkChannelState } from '@dxfeed/dxlink-api'
 import ShowChartIcon from '@mui/icons-material/ShowChart'
-import Box from '@mui/material/Box'
-import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
 import Divider from '@mui/material/Divider'
 import Stack from '@mui/material/Stack'
-import TextField from '@mui/material/TextField'
+import { useEffect, useState } from 'react'
 
+import { ConfigChips } from './config-chips'
+import { FeedChartChannel } from './feed-chart-channel'
 import { ConfigurationSection } from './feed-configuration'
 import { EventsTable } from './feed-events-table'
 import { SubscriptionManager } from './feed-subscriptions'
-import { Placeholder } from '../../shared/components/placeholder'
+import { FeedViewModel } from './feed-view-model'
+import { useVM } from '../../shared/view-model'
 import { ChannelWidget } from '../channels/channel-widget'
 import type { FeedConfig } from '../channels/types'
+import { useConnectionVM } from '../connection/connection-context'
 
 interface FeedChannelProps {
   title: string
   config: FeedConfig
 }
 
-const ConfigChips = ({ config }: { config: FeedConfig }) =>
-  config.feed || config.space ? (
-    <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
-      {config.feed && <Chip size="small" variant="outlined" label={`feed: ${config.feed}`} />}
-      {config.space && <Chip size="small" variant="outlined" label={`space: ${config.space}`} />}
-    </Stack>
-  ) : null
+const FeedStatusChip = ({ state }: { state: DXLinkChannelState }) => {
+  if (state === DXLinkChannelState.OPENED) {
+    return <Chip size="small" color="success" variant="outlined" label="opened" />
+  }
+  if (state === DXLinkChannelState.CLOSED) {
+    return <Chip size="small" variant="outlined" label="closed" />
+  }
+  return <Chip size="small" color="warning" variant="outlined" label="opening" />
+}
 
-/** Feed channel view (draft / presentational only): subscriptions table or candle chart. */
-export const FeedChannel = ({ title, config }: FeedChannelProps) => {
-  const isChart = config.view === 'chart'
+/** Live Feed subscriptions view — wraps a real {@link FeedViewModel}. */
+const FeedSubscriptionsChannel = ({ title, config }: FeedChannelProps) => {
+  const connectionVM = useConnectionVM()
+  // Pure construction (StrictMode double-invokes this) — the feed channel is
+  // opened in start()/closed in stop() via the effect below, not here.
+  const [vm] = useState(() => {
+    const client = connectionVM.getClient()
+    if (client === null) {
+      throw new Error('Feed channel opened without an active connection')
+    }
+    return new FeedViewModel(client, {
+      feed: config.feed || undefined,
+      space: config.space || undefined,
+    })
+  })
+  useEffect(() => {
+    vm.start()
+    return () => vm.stop()
+  }, [vm])
+  const channelState = useVM(vm, (s) => s.channelState)
 
   return (
     <ChannelWidget
       icon={<ShowChartIcon />}
       title={title}
-      subtitle={`Feed · ${isChart ? 'candle chart' : 'subscriptions'}`}
-      status={
-        <Chip
-          size="small"
-          color="success"
-          variant="outlined"
-          label={isChart ? 'chart' : 'opened'}
-        />
-      }
+      subtitle="Feed · subscriptions"
+      onClose={vm.close}
+      status={<FeedStatusChip state={channelState} />}
     >
       <Stack spacing={2}>
         <ConfigChips config={config} />
-
-        {isChart ? (
-          <>
-            <Box
-              sx={{
-                display: 'grid',
-                gap: 1.5,
-                alignItems: 'center',
-                gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr) auto' },
-              }}
-            >
-              <TextField label="Candle symbol" defaultValue="AAPL{=d}" size="small" />
-              <TextField label="From time" defaultValue="0" size="small" />
-              <Button variant="contained" startIcon={<AddIcon />}>
-                Subscribe
-              </Button>
-            </Box>
-            <Placeholder
-              icon={<CandlestickChartIcon fontSize="large" />}
-              label="Candle chart renders here (dxcharts-lite)"
-              height={300}
-            />
-          </>
-        ) : (
-          <>
-            <ConfigurationSection />
-            <Divider />
-            <SubscriptionManager />
-            <Divider />
-            <EventsTable />
-          </>
-        )}
+        <ConfigurationSection vm={vm} />
+        <Divider />
+        <SubscriptionManager vm={vm} />
+        <Divider />
+        <EventsTable vm={vm} />
       </Stack>
     </ChannelWidget>
   )
 }
+
+/** Feed channel view. Both the subscriptions and candle-chart views are live. */
+export const FeedChannel = ({ title, config }: FeedChannelProps) =>
+  config.view === 'chart' ? (
+    <FeedChartChannel title={title} config={config} />
+  ) : (
+    <FeedSubscriptionsChannel title={title} config={config} />
+  )

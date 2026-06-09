@@ -4,7 +4,7 @@ import {
   DXLinkLogLevel,
   DXLinkWebSocketClient,
 } from '@dxfeed/dxlink-api'
-import type { DXLinkConnectionDetails, DXLinkError } from '@dxfeed/dxlink-api'
+import type { DXLinkClient, DXLinkConnectionDetails, DXLinkError } from '@dxfeed/dxlink-api'
 import { createStore } from 'zustand/vanilla'
 
 import type { ViewModel } from '../../shared/view-model'
@@ -94,6 +94,12 @@ export class ConnectionViewModel implements ViewModel<ConnectionVMState> {
   setAuthToken = (token: string): void => {
     this.client?.setAuthToken(token)
   }
+
+  /**
+   * The live client, for opening channels (e.g. building a FeedViewModel). Non-null
+   * only while connected — channel views are gated behind the AUTHORIZED state.
+   */
+  getClient = (): DXLinkClient | null => this.client
 
   clearErrors = (): void => {
     this.store.setState({ errors: [] })

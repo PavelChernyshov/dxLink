@@ -18,6 +18,12 @@ interface ChannelWidgetProps {
   subtitle?: string
   /** Status slot (e.g. a Chip) shown before the collapse/close actions. */
   status?: React.ReactNode
+  /**
+   * Fired once when the user closes the channel. The card stays (closed state is
+   * owned here) — use this to release the channel's resources (e.g. close the
+   * underlying dxlink channel).
+   */
+  onClose?: () => void
   defaultExpanded?: boolean
   children: React.ReactNode
 }
@@ -36,11 +42,17 @@ export const ChannelWidget = ({
   title,
   subtitle,
   status,
+  onClose,
   defaultExpanded = true,
   children,
 }: ChannelWidgetProps) => {
   const [expanded, setExpanded] = useState(defaultExpanded)
   const [closed, setClosed] = useState(false)
+
+  const handleClose = () => {
+    setClosed(true)
+    onClose?.()
+  }
 
   return (
     <Card>
@@ -80,7 +92,7 @@ export const ChannelWidget = ({
                 </IconButton>
               </Tooltip>
               <Tooltip title="Close channel">
-                <IconButton onClick={() => setClosed(true)} aria-label="Close channel">
+                <IconButton onClick={handleClose} aria-label="Close channel">
                   <CloseIcon />
                 </IconButton>
               </Tooltip>
