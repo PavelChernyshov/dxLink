@@ -13,26 +13,33 @@ import { useOwnedViewModel, useVM } from '../shared/view-model'
  * unmount → closes the socket) and provides it to the subtree. Tri-state gating:
  *  - not connected → connection panel only,
  *  - connected + auth UNAUTHORIZED/AUTHORIZING → auth panel,
- *  - connected + auth AUTHORIZED → channels area.
- * `auth === undefined` (not yet known) shows neither, avoiding a token-form flash
- * on no-auth servers.
+ *  - authorized (now or earlier this session) → channels area.
+ *
+ * The channels area is gated on `everAuthorized` rather than the live `authorized`
+ * state so it stays mounted through a reconnect: the same client re-opens its
+ * channels itself, and we keep the open channel cards instead of tearing them down
+ * on the brief connection / auth flicker. It is keyed by `sessionId`, which bumps
+ * only on a fresh connect (new client) — so a new connection starts empty while a
+ * reconnect preserves the channels. `auth === undefined` (not yet known) shows
+ * neither panel, avoiding a token-form flash on no-auth servers.
  */
 export const ConsolePage = () => {
   const vm = useOwnedViewModel(() => new ConnectionViewModel())
   const connection = useVM(vm, (s) => s.connection)
   const auth = useVM(vm, (s) => s.auth)
+  const sessionId = useVM(vm, (s) => s.sessionId)
+  const everAuthorized = useVM(vm, (s) => s.everAuthorized)
 
   const connected = connection === DXLinkConnectionState.CONNECTED
   const needsAuth =
     connected && (auth === DXLinkAuthState.UNAUTHORIZED || auth === DXLinkAuthState.AUTHORIZING)
-  const authorized = connected && auth === DXLinkAuthState.AUTHORIZED
 
   return (
     <ConnectionProvider value={vm}>
       <Stack spacing={3}>
         <ConnectionPanel />
-        {needsAuth && <AuthPanel />}
-        {authorized && <ChannelsArea />}
+        {needsAuth && !everAuthorized && <AuthPanel />}
+        {everAuthorized && <ChannelsArea key={sessionId} />}
       </Stack>
     </ConnectionProvider>
   )

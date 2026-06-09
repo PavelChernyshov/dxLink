@@ -33,6 +33,19 @@ export interface ConnectionVMState {
   auth: DXLinkAuthState | undefined
   details: DXLinkConnectionDetails | null
   errors: ConnectionError[]
+  /**
+   * Identifies the current client instance. Bumped on each fresh {@link connect}
+   * (new client) but NOT on {@link reconnect} (same client). The channels area uses
+   * it as a React remount key, so a brand-new connection starts with no channels
+   * while a reconnect preserves the open ones.
+   */
+  sessionId: number
+  /**
+   * `true` once the current client has reached AUTHORIZED. Stays `true` through a
+   * reconnect (the same client re-opens its channels itself), so the channels area
+   * survives the connection / auth flicker. Reset on disconnect / fresh connect.
+   */
+  everAuthorized: boolean
 }
 
 const createInitialState = (): ConnectionVMState => ({
@@ -40,6 +53,8 @@ const createInitialState = (): ConnectionVMState => ({
   auth: undefined,
   details: null,
   errors: [],
+  sessionId: 0,
+  everAuthorized: false,
 })
 
 /**
@@ -59,8 +74,13 @@ export class ConnectionViewModel implements ViewModel<ConnectionVMState> {
 
   connect = (url: string, params: ConnectionParams): void => {
     this.teardownClient()
-    // Reset errors from any previous connection attempt.
-    this.store.setState({ errors: [] })
+    // A fresh client starts a new session: reset errors, bump the session id (so the
+    // channels area remounts with no channels) and clear the authorized flag.
+    this.store.setState((state) => ({
+      errors: [],
+      sessionId: state.sessionId + 1,
+      everAuthorized: false,
+    }))
 
     const client = new DXLinkWebSocketClient({
       keepaliveInterval: params.keepaliveInterval,
@@ -88,6 +108,7 @@ export class ConnectionViewModel implements ViewModel<ConnectionVMState> {
       connection: DXLinkConnectionState.NOT_CONNECTED,
       auth: undefined,
       details: null,
+      everAuthorized: false,
     })
   }
 
@@ -116,19 +137,24 @@ export class ConnectionViewModel implements ViewModel<ConnectionVMState> {
   }
 
   private handleConnectionState = (state: DXLinkConnectionState): void => {
-    this.store.setState({
+    // Read the server-reported auth state once connected; clear it otherwise.
+    const auth = state === DXLinkConnectionState.CONNECTED ? this.client?.getAuthState() : undefined
+    this.store.setState((prev) => ({
       connection: state,
       details:
         state === DXLinkConnectionState.NOT_CONNECTED
           ? null
           : (this.client?.getConnectionDetails() ?? null),
-      // Read the server-reported auth state once connected; clear it otherwise.
-      auth: state === DXLinkConnectionState.CONNECTED ? this.client?.getAuthState() : undefined,
-    })
+      auth,
+      everAuthorized: prev.everAuthorized || auth === DXLinkAuthState.AUTHORIZED,
+    }))
   }
 
   private handleAuthState = (state: DXLinkAuthState): void => {
-    this.store.setState({ auth: state })
+    this.store.setState((prev) => ({
+      auth: state,
+      everAuthorized: prev.everAuthorized || state === DXLinkAuthState.AUTHORIZED,
+    }))
   }
 
   private handleError = (error: DXLinkError): void => {
@@ -145,12 +171,14 @@ export class ConnectionViewModel implements ViewModel<ConnectionVMState> {
     const client = this.client
     if (client === null) return
     const connection = client.getConnectionState()
-    this.store.setState({
+    const auth = connection === DXLinkConnectionState.CONNECTED ? client.getAuthState() : undefined
+    this.store.setState((prev) => ({
       connection,
       details:
         connection === DXLinkConnectionState.NOT_CONNECTED ? null : client.getConnectionDetails(),
-      auth: connection === DXLinkConnectionState.CONNECTED ? client.getAuthState() : undefined,
-    })
+      auth,
+      everAuthorized: prev.everAuthorized || auth === DXLinkAuthState.AUTHORIZED,
+    }))
   }
 
   private teardownClient = (): void => {
