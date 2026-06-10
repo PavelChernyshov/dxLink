@@ -83,6 +83,7 @@ export const EventsTable = ({ vm }: { vm: FeedViewModel }) => {
           onChange={(_e, value) => setActiveType(value)}
           variant="scrollable"
           scrollButtons="auto"
+          sx={{ minWidth: 0, flexGrow: 1 }}
         >
           {types.map((type) => (
             <Tab
@@ -92,7 +93,7 @@ export const EventsTable = ({ vm }: { vm: FeedViewModel }) => {
             />
           ))}
         </Tabs>
-        <Stack direction="row" spacing={0.5}>
+        <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0, ml: 1 }}>
           <Tooltip title={paused ? 'Resume' : 'Pause'}>
             <IconButton size="small" onClick={togglePause}>
               {paused ? <PlayArrowIcon /> : <PauseIcon />}

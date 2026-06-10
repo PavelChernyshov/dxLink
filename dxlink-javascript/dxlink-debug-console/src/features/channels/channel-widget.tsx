@@ -57,6 +57,9 @@ export const ChannelWidget = ({
   return (
     <Card>
       <CardHeader
+        // Center the action slot (status chip + icon buttons) against the
+        // avatar/title instead of MUI's default top-right offset.
+        sx={{ '& .MuiCardHeader-action': { alignSelf: 'center', m: 0 } }}
         avatar={
           <Avatar
             variant="rounded"

@@ -380,7 +380,7 @@ export const IndiChartChannel = ({ title, config }: IndiChartChannelProps) => {
             sx={{
               display: 'grid',
               gap: 1.5,
-              alignItems: 'center',
+              alignItems: 'start',
               gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr) auto' },
             }}
           >

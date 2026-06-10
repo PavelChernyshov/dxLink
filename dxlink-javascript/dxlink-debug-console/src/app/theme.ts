@@ -59,6 +59,27 @@ export const theme = createTheme({
     button: { fontWeight: 600, textTransform: 'none' },
   },
   components: {
+    MuiCssBaseline: {
+      styleOverrides: {
+        // dxcharts-lite reads its required `--dx-chart-*` tokens from the
+        // document root at chart creation; the package ships light-only
+        // defaults. Map them onto MUI's palette CSS variables so the chart
+        // follows the active color scheme. `html:root` outranks the package's
+        // `:root` regardless of stylesheet order. (A chart created before a
+        // mode switch keeps its palette until its next subscription re-create.)
+        'html:root': {
+          '--dx-chart-bg': 'var(--mui-palette-background-paper)',
+          '--dx-chart-grid': 'var(--mui-palette-divider)',
+          '--dx-chart-axis-label': 'var(--mui-palette-text-secondary)',
+          '--dx-chart-axis-label-inverted': 'var(--mui-palette-background-paper)',
+          '--dx-chart-axis-label-box': 'var(--mui-palette-text-secondary)',
+          '--dx-chart-rect-label-text': 'var(--mui-palette-text-primary)',
+          '--dx-chart-rect-label-inverted-text': 'var(--mui-palette-background-paper)',
+          '--dx-chart-cross-label-box': 'var(--mui-palette-background-default)',
+          '--dx-chart-cross-label-text': 'var(--mui-palette-text-primary)',
+        },
+      },
+    },
     MuiAppBar: {
       defaultProps: {
         elevation: 0,

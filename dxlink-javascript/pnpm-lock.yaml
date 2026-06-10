@@ -84,8 +84,8 @@ importers:
         specifier: workspace:*
         version: link:../dxlink-api
       '@dxscript/dxlink-dxcharts-lite':
-        specifier: 1.11.4
-        version: 1.11.4(@dxfeed/dxlink-api@dxlink-api)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(rxjs@7.8.2)
+        specifier: 1.12.0-SNAPSHOT
+        version: 1.12.0-SNAPSHOT(@dxfeed/dxlink-api@dxlink-api)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(rxjs@7.8.2)
       '@dxscript/js-samples':
         specifier: 1.10.0
         version: 1.10.0
@@ -169,11 +169,11 @@ importers:
         specifier: 2.15.2
         version: 2.15.2(@types/react@18.3.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.6(@babel/core@7.29.7)(react-dom@18.3.1(react@18.3.1))(react-is@18.3.1)(react@18.3.1))
       '@dxscript/dxlink-dxcharts-lite':
-        specifier: ^1.11.2
-        version: 1.11.4(@dxfeed/dxlink-api@dxlink-api)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rxjs@7.8.2)
+        specifier: 1.12.0-SNAPSHOT
+        version: 1.12.0-SNAPSHOT(@dxfeed/dxlink-api@dxlink-api)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rxjs@7.8.2)
       '@dxscript/dxlink-dxscript-editor':
-        specifier: ^1.11.2
-        version: 1.11.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 1.12.0-SNAPSHOT
+        version: 1.12.0-SNAPSHOT(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react:
         specifier: ^18.2.0
         version: 18.3.1
@@ -502,15 +502,15 @@ packages:
       '@types/react':
         optional: true
 
-  '@dxscript/dxlink-dxcharts-lite@1.11.4':
-    resolution: {integrity: sha512-3Neb3+/2W8PETd6D0RO+Jf5vScGdhLPg1evBSHrC4ZoEy9wP/DrGUInDCF8ZT/JpJeG6KBwtPh0G5sPqHx2gww==}
+  '@dxscript/dxlink-dxcharts-lite@1.12.0-SNAPSHOT':
+    resolution: {integrity: sha512-lMeki2RyXsif4KBStnee3zV7IrJ3RFGPsJZiNJk+8vmXvQMWVe2cJV8dRfecEaVuw1DzP7Hk2CTQ4YSbzMmgbA==}
     peerDependencies:
       '@dxfeed/dxlink-api': ^0.6.1
       react: '>=18'
       react-dom: '>=18'
 
-  '@dxscript/dxlink-dxscript-editor@1.11.4':
-    resolution: {integrity: sha512-LPBc81ogpPbT8kqedFvHm/O8O2G1xrk0gTkfLy/URHAJCEAg8PHTlgPFPkpIAjExQLKL3uLkG1xUANWyUPhrfw==}
+  '@dxscript/dxlink-dxscript-editor@1.12.0-SNAPSHOT':
+    resolution: {integrity: sha512-jnR5qacdh5Gt4ieNUvRuvkzxt3rUbXGqLfcJNP9t7UEJ9AhQAD6U/XAigRefyWo9HsIRYhQ1Khce/NlD2c/6cw==}
     peerDependencies:
       react: '>=18'
 
@@ -4450,7 +4450,7 @@ snapshots:
     optionalDependencies:
       '@types/react': 18.3.29
 
-  '@dxscript/dxlink-dxcharts-lite@1.11.4(@dxfeed/dxlink-api@dxlink-api)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rxjs@7.8.2)':
+  '@dxscript/dxlink-dxcharts-lite@1.12.0-SNAPSHOT(@dxfeed/dxlink-api@dxlink-api)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rxjs@7.8.2)':
     dependencies:
       '@devexperts/dxcharts-lite': 2.7.30(rxjs@7.8.2)
       '@dxfeed/dxlink-api': link:dxlink-api
@@ -4459,7 +4459,7 @@ snapshots:
     transitivePeerDependencies:
       - rxjs
 
-  '@dxscript/dxlink-dxcharts-lite@1.11.4(@dxfeed/dxlink-api@dxlink-api)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(rxjs@7.8.2)':
+  '@dxscript/dxlink-dxcharts-lite@1.12.0-SNAPSHOT(@dxfeed/dxlink-api@dxlink-api)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(rxjs@7.8.2)':
     dependencies:
       '@devexperts/dxcharts-lite': 2.7.30(rxjs@7.8.2)
       '@dxfeed/dxlink-api': link:dxlink-api
@@ -4468,7 +4468,7 @@ snapshots:
     transitivePeerDependencies:
       - rxjs
 
-  '@dxscript/dxlink-dxscript-editor@1.11.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@dxscript/dxlink-dxscript-editor@1.12.0-SNAPSHOT(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@dxscript/js-samples': 1.10.0
       ace-builds: 1.35.4

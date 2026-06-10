@@ -59,7 +59,9 @@ export const AuthPanel = () => {
                 variant="contained"
                 disabled={authorizing || token.trim() === ''}
                 startIcon={authorizing ? <CircularProgress size={16} color="inherit" /> : undefined}
-                sx={{ mt: 0.25 }}
+                // Match the 40px height of the adjacent `size="small"` field
+                // (same convention as the Add / Subscribe / Apply buttons).
+                sx={{ height: 40, flexShrink: 0 }}
               >
                 {authorizing ? 'Authorizing…' : 'Authorize'}
               </Button>
