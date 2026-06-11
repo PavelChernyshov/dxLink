@@ -104,7 +104,10 @@ export const ChannelWidget = ({
         }
       />
       {!closed && (
-        <Collapse in={expanded} timeout="auto" unmountOnExit>
+        // Collapsed content stays mounted: charts consume pushed data imperatively
+        // (outside the store), so unmounting would lose everything streamed while
+        // collapsed — including the dxScript spline pane placements deltas rely on.
+        <Collapse in={expanded} timeout="auto">
           <CardContent sx={{ pt: 0 }}>{children}</CardContent>
         </Collapse>
       )}
