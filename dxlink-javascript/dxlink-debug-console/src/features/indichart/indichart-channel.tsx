@@ -463,7 +463,12 @@ export const IndiChartChannel = ({ title, config }: IndiChartChannelProps) => {
 
         <Box>
           <Box sx={{ position: 'relative' }}>
-            <ChartSurface ref={chartRef} resetKey={resetKey} onIndicatorError={setChartError} />
+            <ChartSurface
+              ref={chartRef}
+              resetKey={resetKey}
+              showLabels={true}
+              onIndicatorError={setChartError}
+            />
             {!hasData && (
               <Stack
                 spacing={1}

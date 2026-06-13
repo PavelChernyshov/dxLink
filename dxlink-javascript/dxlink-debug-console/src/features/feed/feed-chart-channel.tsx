@@ -151,7 +151,12 @@ export const FeedChartChannel = ({ title, config }: FeedChartChannelProps) => {
             </Typography>
           </Stack>
           <Box sx={{ position: 'relative' }}>
-            <ChartSurface ref={chartRef} resetKey={resetKey} onIndicatorError={setChartError} />
+            <ChartSurface
+              ref={chartRef}
+              resetKey={resetKey}
+              showLabels={true}
+              onIndicatorError={setChartError}
+            />
             {candleCount === 0 && (
               <Stack
                 spacing={1}

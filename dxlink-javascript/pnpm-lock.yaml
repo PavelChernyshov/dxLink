@@ -84,8 +84,8 @@ importers:
         specifier: workspace:*
         version: link:../dxlink-api
       '@dxscript/dxlink-dxcharts-lite':
-        specifier: 1.12.0-SNAPSHOT
-        version: 1.12.0-SNAPSHOT(@dxfeed/dxlink-api@dxlink-api)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(rxjs@7.8.2)
+        specifier: 1.13.0-SNAPSHOT-2
+        version: 1.13.0-SNAPSHOT-2(@dxfeed/dxlink-indichart@0.9.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(rxjs@7.8.2)
       '@dxscript/js-samples':
         specifier: 1.10.0
         version: 1.10.0
@@ -170,7 +170,7 @@ importers:
         version: 2.15.2(@types/react@18.3.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.6(@babel/core@7.29.7)(react-dom@18.3.1(react@18.3.1))(react-is@18.3.1)(react@18.3.1))
       '@dxscript/dxlink-dxcharts-lite':
         specifier: 1.12.0-SNAPSHOT
-        version: 1.12.0-SNAPSHOT(@dxfeed/dxlink-api@dxlink-api)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rxjs@7.8.2)
+        version: 1.12.0-SNAPSHOT(@dxfeed/dxlink-indichart@0.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rxjs@7.8.2)
       '@dxscript/dxlink-dxscript-editor':
         specifier: 1.12.0-SNAPSHOT
         version: 1.12.0-SNAPSHOT(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -491,6 +491,12 @@ packages:
     peerDependencies:
       rxjs: '>=6.5.2'
 
+  '@dxfeed/dxlink-core@0.9.0':
+    resolution: {integrity: sha512-Gr+qP9czWVRTTE65yp1mhQi8gQ/N+7DJVAASpktb0OKL7Z4N+7sVwNTgP2e0tqBSGTvinmqRQ7+nUn3lprGfrw==, tarball: https://dxfeed.jfrog.io/artifactory/api/npm/npm-local/@dxfeed/dxlink-core/-/@dxfeed/dxlink-core-0.9.0.tgz}
+
+  '@dxfeed/dxlink-indichart@0.9.0':
+    resolution: {integrity: sha512-v81fuveawcki3m6AA8HqIU6dLlpw8KXeMie7ds7gWaa8PmFHQ1xcl68/ejTHJ9kPGycHoBY64E2zvPKQc+cPHw==, tarball: https://dxfeed.jfrog.io/artifactory/api/npm/npm-local/@dxfeed/dxlink-indichart/-/@dxfeed/dxlink-indichart-0.9.0.tgz}
+
   '@dxfeed/ui-kit@2.15.2':
     resolution: {integrity: sha512-lDuXbVKn98jRBA7ggoRkMKz/aJyzd1A1/XLof9+BoLBmyDbZEQoNnauUYAMSwCmqtWFbbQMVFM8KPdjz3iQX7Q==, tarball: https://dxfeed.jfrog.io/artifactory/api/npm/npm-local/@dxfeed/ui-kit/-/@dxfeed/ui-kit-2.15.2.tgz}
     peerDependencies:
@@ -503,9 +509,16 @@ packages:
         optional: true
 
   '@dxscript/dxlink-dxcharts-lite@1.12.0-SNAPSHOT':
-    resolution: {integrity: sha512-lMeki2RyXsif4KBStnee3zV7IrJ3RFGPsJZiNJk+8vmXvQMWVe2cJV8dRfecEaVuw1DzP7Hk2CTQ4YSbzMmgbA==}
+    resolution: {integrity: sha512-p82u68I5Q05VSzHxcFng+K3a5H7AE4uoWZ9cy6ch++HF/ktwQM/qpLgcTEAMnUBIOVo/gbL53o1YoDqsPu9wDg==}
     peerDependencies:
-      '@dxfeed/dxlink-api': ^0.6.1
+      '@dxfeed/dxlink-indichart': ^0.9.0
+      react: '>=18'
+      react-dom: '>=18'
+
+  '@dxscript/dxlink-dxcharts-lite@1.13.0-SNAPSHOT-2':
+    resolution: {integrity: sha512-1/RSpG2Ys0hi0/8BDNtmuHx1mgnIbmyhxyf4ZVZlcbfZcpPbtVvUk0xUqz9GyqdApuhWC5IxUtD9K4tuY1+Q+g==}
+    peerDependencies:
+      '@dxfeed/dxlink-indichart': ^0.9.0
       react: '>=18'
       react-dom: '>=18'
 
@@ -4437,6 +4450,12 @@ snapshots:
       date-fns: 4.1.0
       rxjs: 7.8.2
 
+  '@dxfeed/dxlink-core@0.9.0': {}
+
+  '@dxfeed/dxlink-indichart@0.9.0':
+    dependencies:
+      '@dxfeed/dxlink-core': 0.9.0
+
   '@dxfeed/ui-kit@2.15.2(@types/react@18.3.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.6(@babel/core@7.29.7)(react-dom@18.3.1(react@18.3.1))(react-is@18.3.1)(react@18.3.1))':
     dependencies:
       '@popperjs/core': 2.11.8
@@ -4450,19 +4469,19 @@ snapshots:
     optionalDependencies:
       '@types/react': 18.3.29
 
-  '@dxscript/dxlink-dxcharts-lite@1.12.0-SNAPSHOT(@dxfeed/dxlink-api@dxlink-api)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rxjs@7.8.2)':
+  '@dxscript/dxlink-dxcharts-lite@1.12.0-SNAPSHOT(@dxfeed/dxlink-indichart@0.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rxjs@7.8.2)':
     dependencies:
       '@devexperts/dxcharts-lite': 2.7.30(rxjs@7.8.2)
-      '@dxfeed/dxlink-api': link:dxlink-api
+      '@dxfeed/dxlink-indichart': 0.9.0
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
     transitivePeerDependencies:
       - rxjs
 
-  '@dxscript/dxlink-dxcharts-lite@1.12.0-SNAPSHOT(@dxfeed/dxlink-api@dxlink-api)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(rxjs@7.8.2)':
+  '@dxscript/dxlink-dxcharts-lite@1.13.0-SNAPSHOT-2(@dxfeed/dxlink-indichart@0.9.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(rxjs@7.8.2)':
     dependencies:
       '@devexperts/dxcharts-lite': 2.7.30(rxjs@7.8.2)
-      '@dxfeed/dxlink-api': link:dxlink-api
+      '@dxfeed/dxlink-indichart': 0.9.0
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
     transitivePeerDependencies:
