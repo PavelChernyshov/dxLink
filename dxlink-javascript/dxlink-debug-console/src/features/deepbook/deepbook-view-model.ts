@@ -25,9 +25,10 @@ export interface DeepBookHeatmap {
   segments: DeepBookSegment[]
   minPrice: number
   maxPrice: number
-  /** Largest resting size in view, used to normalize color intensity. */
-  maxSize: number
-  /** Representative price-level spacing, for sizing band height in domain space. */
+  /**
+   * Robust price-level spacing (≈ the instrument tick), for sizing band height in domain space. Color intensity is
+   * NOT normalized here — the renderer derives its own percentile cutoffs from the sizes visible on screen.
+   */
   priceStep: number
   /** Right edge (latest event time) that still-resting levels extend to. */
   nowTime: number
@@ -47,27 +48,37 @@ export interface DeepBookVMState {
 // Coalesce heatmap frames to ~10fps.
 const FLUSH_INTERVAL_MS = 100
 // Retain closed liquidity segments within this window of the latest data (older liquidity scrolls out of memory).
+// Time is the intended retention bound (it must cover the requested history window so the heatmap reaches `fromTime`).
 const RETAIN_MS = 60 * 60 * 1000
-// Hard cap on retained closed segments to bound memory and redraw cost.
-const MAX_SEGMENTS = 30000
+// Safety cap on retained closed segments (memory/redraw bound only). It must stay well above the number of segments a
+// busy feed produces within RETAIN_MS — otherwise the count cap, not time, bounds retention and the heatmap history is
+// cut short (never reaching the requested `fromTime`). At observed churn ~30k spans only ~10-15 min, so keep it high.
+// TEMPORARY: bumped to give more history headroom until the renderer moves to a raster (which removes the cap need).
+const MAX_SEGMENTS = 240000
 
 const EMPTY_HEATMAP: DeepBookHeatmap = {
   segments: [],
   minPrice: NaN,
   maxPrice: NaN,
-  maxSize: 0,
   priceStep: NaN,
   nowTime: 0,
 }
 
-/** Smallest positive gap between consecutive values of a sorted numeric array, or `fallback` if none. */
-const minPositiveGap = (sortedAsc: number[], fallback: number): number => {
-  let min = Infinity
+/**
+ * Robust estimate of the price-level spacing (≈ the instrument tick): a low percentile of the positive gaps between
+ * consecutive distinct prices. The plain minimum latches onto the occasional sub-tick pair (a stray fractional price)
+ * and collapses the band height; a low percentile stays near the true tick while ignoring those rare outliers.
+ */
+const robustPriceStep = (sortedAsc: number[], fallback: number): number => {
+  const gaps: number[] = []
   for (let i = 1; i < sortedAsc.length; i++) {
     const gap = sortedAsc[i]! - sortedAsc[i - 1]!
-    if (gap > 0 && gap < min) min = gap
+    if (gap > 0) gaps.push(gap)
   }
-  return Number.isFinite(min) ? min : fallback
+  if (gaps.length === 0) return fallback
+  gaps.sort((a, b) => a - b)
+  // 10th percentile: close to the modal tick, robust to a handful of sub-tick gaps.
+  return gaps[Math.min(gaps.length - 1, Math.floor(gaps.length * 0.1))]!
 }
 
 /** A price level currently resting in the book, with the time its current size took effect. */
@@ -115,6 +126,11 @@ export class DeepBookViewModel implements ViewModel<DeepBookVMState> {
   private segments: DeepBookSegment[] = []
   private lastTime = 0
 
+  // While the historical snapshot is streaming (`pending`), reconstruct silently and DON'T paint: repainting the
+  // partial book on every batch of a ~100k-order backfill is wasteful and shows a growing, incomplete picture. The
+  // heatmap is painted once, when the stream flips to live, and updated normally thereafter.
+  private backfilling = true
+
   private heatmapListener: DeepBookHeatmapListener | null = null
   private flushHandle: ReturnType<typeof setTimeout> | null = null
 
@@ -152,6 +168,7 @@ export class DeepBookViewModel implements ViewModel<DeepBookVMState> {
 
   start = (): void => {
     if (this.deepBook !== null) return
+    this.backfilling = true
     const deepBook = new DXLinkDeepBook(this.client, this.params)
     deepBook.addOrdersListener(this.handleOrders)
     deepBook.addStateChangeListener(this.handleState)
@@ -197,12 +214,31 @@ export class DeepBookViewModel implements ViewModel<DeepBookVMState> {
     this.candleListener?.(data)
   }
 
-  private handleOrders = (orders: DeepBookOrder[], _pending: boolean): void => {
+  private handleOrders = (orders: DeepBookOrder[], pending: boolean): void => {
     if (this.deepBook === null) return
     for (const order of orders) {
       this.applyOrder(order)
     }
     this.store.setState((s) => ({ totalOrders: s.totalOrders + orders.length }))
+
+    if (pending) {
+      // Still backfilling history: keep reconstructing, but don't paint a partial snapshot.
+      this.backfilling = true
+      return
+    }
+
+    if (this.backfilling) {
+      // First live batch after the snapshot completed: paint the full reconstruction now, at once.
+      this.backfilling = false
+      if (this.flushHandle !== null) {
+        clearTimeout(this.flushHandle)
+        this.flushHandle = null
+      }
+      this.flush()
+      return
+    }
+
+    // Live updates: coalesce repaints to ~10fps.
     if (this.flushHandle === null) {
       this.flushHandle = setTimeout(this.flush, FLUSH_INTERVAL_MS)
     }
@@ -220,14 +256,18 @@ export class DeepBookViewModel implements ViewModel<DeepBookVMState> {
     const key = `${price}|${side}`
     const existing = this.book.get(key)
 
+    // Drop strictly out-of-order events: an event older than the level's current state must not overwrite a newer
+    // size (streams are ascending, so this only guards the rare reordered/duplicate delivery at the boundary).
+    if (existing !== undefined && time < existing.sinceTime) return
+
     // Close the previous size into a segment spanning [sinceTime, time) before applying the change.
     if (existing !== undefined && time > existing.sinceTime) {
       this.pushSegment({ price, side, size: existing.size, tStart: existing.sinceTime, tEnd: time })
     }
 
     if (Number.isFinite(size) && size > 0) {
-      if (existing !== undefined && time <= existing.sinceTime) {
-        // Same-bucket (or out-of-order) update: keep the start, just replace the size.
+      if (existing !== undefined && time === existing.sinceTime) {
+        // Same-bucket update at the same timestamp: keep the start, just replace the size (last write wins).
         existing.size = size
       } else {
         this.book.set(key, { price, side, size, sinceTime: time })
@@ -267,20 +307,18 @@ export class DeepBookViewModel implements ViewModel<DeepBookVMState> {
     const prices = new Set<number>()
     let minPrice = Infinity
     let maxPrice = -Infinity
-    let maxSize = 0
     for (const s of segments) {
       prices.add(s.price)
       if (s.price < minPrice) minPrice = s.price
       if (s.price > maxPrice) maxPrice = s.price
-      if (s.size > maxSize) maxSize = s.size
     }
-    const priceStep = minPositiveGap(
+    const priceStep = robustPriceStep(
       Array.from(prices).sort((a, b) => a - b),
       Number.isFinite(minPrice) && Number.isFinite(maxPrice) && maxPrice > minPrice
         ? (maxPrice - minPrice) / 100
         : 0.01
     )
-    return { segments, minPrice, maxPrice, maxSize, priceStep, nowTime: this.lastTime }
+    return { segments, minPrice, maxPrice, priceStep, nowTime: this.lastTime }
   }
 
   private flush = (): void => {

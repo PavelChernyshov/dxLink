@@ -1,9 +1,10 @@
 /**
- * Default dxLink WebSocket endpoint used in development — the shared dev relay,
- * so the console connects to a real server out of the box (the page is served
- * from localhost in dev, which is not itself a dxLink endpoint).
+ * Default dxLink WebSocket endpoint used in development — the locally running
+ * market-data WebSocket server, so `pnpm dev` connects to your own server out of
+ * the box (the page is served from localhost in dev, which is not itself a dxLink
+ * endpoint). Point it elsewhere (e.g. the shared dev relay) in the connection form.
  */
-export const DEV_WS_URL = 'wss://dxlink-md-ws-dev.dxkube.com'
+export const DEV_WS_URL = 'ws://localhost:9959'
 
 /** The subset of `Location` the URL derivation actually reads. */
 export type LocationLike = Pick<Location, 'protocol' | 'host' | 'pathname'>
