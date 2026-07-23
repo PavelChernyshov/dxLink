@@ -1,4 +1,4 @@
-export type ChannelKind = 'feed' | 'dom' | 'indichart'
+export type ChannelKind = 'feed' | 'dom' | 'deepbook' | 'indichart'
 
 export type FeedView = 'subscriptions' | 'chart'
 
@@ -21,13 +21,25 @@ export interface DomConfig {
   space: string
 }
 
+export interface DeepBookConfig {
+  kind: 'deepbook'
+  symbol: string
+  source: string
+  /** ORCS aggregation granularity of the heatmap as a candle-period string, e.g. "1s". */
+  granularity: string
+  /** Candle period of the reference overlay chart, e.g. "1m" (independent of the heatmap granularity). */
+  candlePeriod: string
+  /** History window start (epoch millis) fixed at channel-open time. */
+  fromTime: number
+}
+
 export interface IndiChartConfig {
   kind: 'indichart'
   /** Indicator scripts; the protocol names them 1..N by position. */
   indicators: string[]
 }
 
-export type ChannelConfig = FeedConfig | DomConfig | IndiChartConfig
+export type ChannelConfig = FeedConfig | DomConfig | DeepBookConfig | IndiChartConfig
 
 export interface DraftChannel {
   id: string
@@ -48,6 +60,15 @@ export interface DomRequest {
   source: string
   feed: string
   space: string
+}
+
+export interface DeepBookRequest {
+  symbol: string
+  source: string
+  granularity: string
+  candlePeriod: string
+  /** History lookback in minutes; fromTime = now − lookback at open time. */
+  lookbackMinutes: string
 }
 
 export interface IndiChartRequest {

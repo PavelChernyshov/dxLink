@@ -53,6 +53,9 @@ importers:
       '@dxfeed/dxlink-core':
         specifier: workspace:*
         version: link:../dxlink-core
+      '@dxfeed/dxlink-deepbook':
+        specifier: workspace:*
+        version: link:../dxlink-deepbook
       '@dxfeed/dxlink-dom':
         specifier: workspace:*
         version: link:../dxlink-dom
@@ -156,6 +159,19 @@ importers:
       vitest:
         specifier: ^4.1.0
         version: 4.1.8(@types/node@24.12.4)(jsdom@29.1.1)(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.7))
+
+  dxlink-deepbook:
+    dependencies:
+      '@dxfeed/dxlink-core':
+        specifier: workspace:*
+        version: link:../dxlink-core
+      '@dxfeed/dxlink-rpc':
+        specifier: workspace:*
+        version: link:../dxlink-rpc
+    devDependencies:
+      rxjs:
+        specifier: ^7.5.2
+        version: 7.8.2
 
   dxlink-docs:
     dependencies:

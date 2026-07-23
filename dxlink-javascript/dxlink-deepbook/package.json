@@ -1,9 +1,9 @@
 {
-  "name": "@dxfeed/dxlink-api",
+  "name": "@dxfeed/dxlink-deepbook",
   "version": "0.9.0",
   "private": false,
   "sideEffects": false,
-  "description": "dxLink API provides access to market data from dxFeed services",
+  "description": "dxLink DeepBook provides a seamless history-plus-live stream of aggregated price-level orders for order-book heatmaps",
   "source": "src/index.ts",
   "exports": {
     ".": {
@@ -21,31 +21,23 @@
   "module": "build/index.mjs",
   "types": "build/index.d.ts",
   "scripts": {
-    "start": "vite ./demo",
-    "prepublishOnly": "pnpm run build",
+    "prepublishOnly": "pnpm run build && pnpm run test",
     "build": "tsup src/index.ts --format esm,cjs --dts --sourcemap --clean --out-dir build",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@dxfeed/dxlink-core": "workspace:*",
-    "@dxfeed/dxlink-websocket-client": "workspace:*",
-    "@dxfeed/dxlink-feed": "workspace:*",
-    "@dxfeed/dxlink-dom": "workspace:*",
-    "@dxfeed/dxlink-deepbook": "workspace:*",
-    "@dxfeed/dxlink-indichart": "workspace:*",
     "@dxfeed/dxlink-rpc": "workspace:*"
   },
+  "peerDependencies": {
+    "rxjs": ">=7.0.0"
+  },
   "devDependencies": {
-    "@vitejs/plugin-react": "^6.0.2",
-    "vite": "^8.0.16"
+    "rxjs": "^7.5.2"
   },
   "author": "Dmitry Petrov <dmitry.petrov@devexperts.com>",
-  "maintainers": [
-    {
-      "name": "Fyzu",
-      "url": "https://github.com/fyzu"
-    }
-  ],
   "license": "MPL-2.0",
   "repository": {
     "type": "git",
@@ -55,23 +47,21 @@
     "url": "https://github.com/dxfeed/dxlink/issues"
   },
   "homepage": "https://dxfeed.com/",
-  "files": [
-    "/build",
-    "/package.json"
-  ],
   "keywords": [
     "api",
-    "feed",
     "client",
-    "financial-data",
+    "deepbook",
+    "order-book",
+    "heatmap",
+    "price-level",
     "market-data",
-    "market-data-feeds",
-    "market-api",
-    "stock-market",
-    "stock-price-data",
     "real-time-data",
     "historical-data",
     "dxfeed",
     "dxlink"
+  ],
+  "files": [
+    "/build",
+    "/package.json"
   ]
 }

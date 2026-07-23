@@ -14,6 +14,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@devexperts/dxcharts-lite": "^2.7.25",
     "@dxfeed/dxlink-api": "workspace:*",
     "@dxscript/dxlink-dxcharts-lite": "1.13.0-SNAPSHOT-2",
     "@dxscript/js-samples": "1.10.0",

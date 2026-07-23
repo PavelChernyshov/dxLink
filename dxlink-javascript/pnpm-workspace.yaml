@@ -4,6 +4,7 @@ packages:
   - dxlink-websocket-client
   - dxlink-feed
   - dxlink-dom
+  - dxlink-deepbook
   - dxlink-indichart
   - dxlink-rpc
   - dxlink-docs

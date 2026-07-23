@@ -1,6 +1,7 @@
 import InsightsIcon from '@mui/icons-material/Insights'
 import ShowChartIcon from '@mui/icons-material/ShowChart'
 import ViewColumnIcon from '@mui/icons-material/ViewColumn'
+import WhatshotIcon from '@mui/icons-material/Whatshot'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Card from '@mui/material/Card'
@@ -17,11 +18,14 @@ import type { ReactNode } from 'react'
 import type {
   ChannelConfig,
   ChannelKind,
+  DeepBookRequest,
   DomRequest,
   DraftChannel,
   FeedRequest,
   IndiChartRequest,
 } from './types'
+import { DeepBookChannel } from '../deepbook/deepbook-channel'
+import { DeepBookChannelRequest } from '../deepbook/deepbook-channel-request'
 import { DomChannel } from '../dom/dom-channel'
 import { DomChannelRequest } from '../dom/dom-channel-request'
 import { FeedChannel } from '../feed/feed-channel'
@@ -33,14 +37,21 @@ import { DEFAULT_INDICATOR_CODE } from '../indichart/samples'
 const ADD_BUTTONS: { kind: ChannelKind; label: string; icon: ReactNode }[] = [
   { kind: 'feed', label: 'Feed', icon: <ShowChartIcon /> },
   { kind: 'dom', label: 'DOM', icon: <ViewColumnIcon /> },
+  { kind: 'deepbook', label: 'DeepBook', icon: <WhatshotIcon /> },
   { kind: 'indichart', label: 'IndiChart', icon: <InsightsIcon /> },
 ]
 
-const LABELS: Record<ChannelKind, string> = { feed: 'Feed', dom: 'DOM', indichart: 'IndiChart' }
+const LABELS: Record<ChannelKind, string> = {
+  feed: 'Feed',
+  dom: 'DOM',
+  deepbook: 'DeepBook',
+  indichart: 'IndiChart',
+}
 
 const DIALOG_TITLES: Record<ChannelKind, string> = {
   feed: 'New Feed channel',
   dom: 'New DOM channel',
+  deepbook: 'New DeepBook channel',
   indichart: 'New IndiChart channel',
 }
 
@@ -51,6 +62,8 @@ const renderChannel = (channel: DraftChannel) => {
       return <FeedChannel title={title} config={channel.config} />
     case 'dom':
       return <DomChannel title={title} config={channel.config} />
+    case 'deepbook':
+      return <DeepBookChannel title={title} config={channel.config} />
     case 'indichart':
       return <IndiChartChannel title={title} config={channel.config} />
   }
@@ -76,6 +89,13 @@ export const ChannelsArea = () => {
     source: '',
     feed: '',
     space: '',
+  })
+  const [deepBookRequest, setDeepBookRequest] = useState<DeepBookRequest>({
+    symbol: 'AAPL',
+    source: 'NTV',
+    granularity: '1s',
+    candlePeriod: '1m',
+    lookbackMinutes: '30',
   })
   const [indiRequest, setIndiRequest] = useState<IndiChartRequest>({
     indicators: [DEFAULT_INDICATOR_CODE],
@@ -117,6 +137,17 @@ export const ChannelsArea = () => {
         feed: domRequest.feed.trim(),
         space: domRequest.space.trim(),
       }
+    } else if (requestKind === 'deepbook') {
+      const lookbackMinutes = Number(deepBookRequest.lookbackMinutes)
+      const minutes = Number.isFinite(lookbackMinutes) && lookbackMinutes > 0 ? lookbackMinutes : 30
+      config = {
+        kind: 'deepbook',
+        symbol: deepBookRequest.symbol.trim(),
+        source: deepBookRequest.source.trim(),
+        granularity: deepBookRequest.granularity.trim() || '1s',
+        candlePeriod: deepBookRequest.candlePeriod.trim() || '1m',
+        fromTime: Date.now() - minutes * 60_000,
+      }
     } else {
       config = { kind: 'indichart', indicators: indiRequest.indicators }
     }
@@ -126,7 +157,9 @@ export const ChannelsArea = () => {
     setScrollToId(id)
   }
 
-  const canOpen = requestKind !== 'dom' || domRequest.symbol.trim().length > 0
+  const canOpen =
+    (requestKind !== 'dom' || domRequest.symbol.trim().length > 0) &&
+    (requestKind !== 'deepbook' || deepBookRequest.symbol.trim().length > 0)
 
   return (
     <Stack spacing={2}>
@@ -185,6 +218,9 @@ export const ChannelsArea = () => {
           )}
           {requestKind === 'dom' && (
             <DomChannelRequest value={domRequest} onChange={setDomRequest} />
+          )}
+          {requestKind === 'deepbook' && (
+            <DeepBookChannelRequest value={deepBookRequest} onChange={setDeepBookRequest} />
           )}
           {requestKind === 'indichart' && (
             <IndiChartChannelRequest value={indiRequest} onChange={setIndiRequest} />
