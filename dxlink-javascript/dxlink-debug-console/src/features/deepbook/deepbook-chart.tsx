@@ -13,9 +13,8 @@ import type { DeepBookHeatmap, DeepBookViewModel } from './deepbook-view-model'
 
 const HEIGHT = 420
 
-/** Coerce the `number | 'NaN'` candle fields to a number. */
-const num = (value: number | string | undefined): number =>
-  typeof value === 'number' ? value : Number(value)
+/** Coerce a `number | 'NaN' | undefined` candle field to a number (`'NaN'`/undefined → `NaN`). */
+const num = (value: number | string | undefined): number => Number(value)
 
 // Opaque Bookmap-style intensity palette, precomputed once into a 256-entry lookup table so per-cell coloring is a
 // single array index (no per-draw interpolation). Stops: #0D1524 -> #16407A -> #2E7BC4 -> #3ECFD6 -> #F2C94C -> #E24B4A.
@@ -142,7 +141,9 @@ class HeatmapDrawer implements Drawer {
     // Project + cull to the visible band once; reuse for both normalization and drawing.
     const visible: { x0: number; x1: number; y: number; size: number }[] = []
     for (const seg of heatmap.segments) {
-      if (seg.size <= 0) continue
+      // Reject non-positive AND NaN sizes (NaN <= 0 is false): a NaN size would flow to LUT[Math.round(NaN*255)] =
+      // LUT[NaN] = undefined and paint the band in the previous band's fillStyle.
+      if (!(seg.size > 0)) continue
       const xa = timeToX(seg.tStart)
       const xb = timeToX(seg.tEnd)
       if (!Number.isFinite(xa) || !Number.isFinite(xb)) continue
@@ -177,8 +178,10 @@ class HeatmapDrawer implements Drawer {
       const sizes: number[] = []
       for (const seg of heatmap.segments) if (seg.size > 0) sizes.push(seg.size)
       sizes.sort((a, b) => a - b)
-      this.lo = percentile(sizes, loPct)
-      this.hi = percentile(sizes, hiPct)
+      // The two sliders' ranges overlap (low ≤ 95, high ≥ 80), so the user can set loPct > hiPct. Order the percentiles
+      // before sampling so lo ≤ hi and the log gradient never collapses into the degenerate (all-equal) branch.
+      this.lo = percentile(sizes, Math.min(loPct, hiPct))
+      this.hi = percentile(sizes, Math.max(loPct, hiPct))
     }
     const lo = this.lo
     const hi = this.hi
@@ -231,7 +234,6 @@ export const DeepBookChart = ({ vm }: { vm: DeepBookViewModel }) => {
     const chart = createChart(container)
     chartRef.current = chart
     const heatmapRef: { current: DeepBookHeatmap | null } = { current: null }
-    const candles = new Map<string, PartialCandle>()
     let candleTimestamps: number[] = []
     let hasSnapshot = false
 
@@ -251,22 +253,30 @@ export const DeepBookChart = ({ vm }: { vm: DeepBookViewModel }) => {
     })
 
     vm.setCandleListener((data) => {
-      if (data.isSnapshot) candles.clear()
+      // DXLinkCandles emits the FULL current candle list on every change (snapshot and incremental), with RemoveEvent'd
+      // candles already dropped. Rebuild the series from it each time; accumulating into a map cleared only on
+      // isSnapshot would keep removed/corrected candles drawn until the next full snapshot.
+      const sorted: PartialCandle[] = []
       for (const event of data.events) {
         const close = num(event.close)
         if (!Number.isFinite(close)) continue
+        // Coerce O/H/L to finite (fall back to close): a 'NaN' high/low would poison dxcharts' price-axis auto-range
+        // (Math.max(x, NaN) → NaN), making toY() return NaN for every price and blanking the entire heatmap.
+        const open = num(event.open)
+        const high = num(event.high)
+        const low = num(event.low)
         const volume = num(event.volume)
-        candles.set(String(event.index), {
+        sorted.push({
           id: String(event.index),
           timestamp: event.time,
-          open: num(event.open),
-          hi: num(event.high),
-          lo: num(event.low),
+          open: Number.isFinite(open) ? open : close,
+          hi: Number.isFinite(high) ? high : close,
+          lo: Number.isFinite(low) ? low : close,
           close,
           volume: Number.isFinite(volume) ? volume : 0,
         })
       }
-      const sorted = Array.from(candles.values()).sort((a, b) => a.timestamp - b.timestamp)
+      sorted.sort((a, b) => a.timestamp - b.timestamp)
       candleTimestamps = sorted.map((c) => c.timestamp)
       const series = { candles: sorted }
       // setData once (initial auto-fit), then updateData so the user's pan/zoom is preserved.

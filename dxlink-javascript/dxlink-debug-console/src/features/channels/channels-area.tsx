@@ -159,7 +159,8 @@ export const ChannelsArea = () => {
 
   const canOpen =
     (requestKind !== 'dom' || domRequest.symbol.trim().length > 0) &&
-    (requestKind !== 'deepbook' || deepBookRequest.symbol.trim().length > 0)
+    (requestKind !== 'deepbook' ||
+      (deepBookRequest.symbol.trim().length > 0 && deepBookRequest.source.trim().length > 0))
 
   return (
     <Stack spacing={2}>
@@ -193,7 +194,8 @@ export const ChannelsArea = () => {
             }}
           >
             <Typography color="text.secondary">
-              No channels open. Use the buttons above to open a Feed, DOM or IndiChart channel.
+              No channels open. Use the buttons above to open a Feed, DOM, DeepBook or IndiChart
+              channel.
             </Typography>
           </CardContent>
         </Card>

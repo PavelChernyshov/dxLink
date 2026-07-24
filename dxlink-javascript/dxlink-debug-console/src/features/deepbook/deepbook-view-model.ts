@@ -152,9 +152,10 @@ export class DeepBookViewModel implements ViewModel<DeepBookVMState> {
   setHeatmapListener = (listener: DeepBookHeatmapListener | null): void => {
     this.heatmapListener = listener
     if (listener !== null) {
-      listener(
-        this.book.size === 0 && this.segments.length === 0 ? EMPTY_HEATMAP : this.buildHeatmap()
-      )
+      // Don't paint a partial book while backfilling (a listener may attach mid-history); the emptiness check also
+      // covers the fresh-mount case where nothing has arrived yet.
+      const partial = this.backfilling || (this.book.size === 0 && this.segments.length === 0)
+      listener(partial ? EMPTY_HEATMAP : this.buildHeatmap())
     }
   }
 
@@ -169,6 +170,13 @@ export class DeepBookViewModel implements ViewModel<DeepBookVMState> {
   start = (): void => {
     if (this.deepBook !== null) return
     this.backfilling = true
+    // Reset per-stream accumulators so a stop()→start() reuse — React StrictMode's mount→unmount→remount on the same
+    // instance, or any future restart/reconnect — rebuilds from a clean slate instead of replaying history onto stale
+    // book/segments/counters (which would double totalOrders and drop early replayed events via the out-of-order guard).
+    this.book.clear()
+    this.segments = []
+    this.lastTime = 0
+    this.store.setState({ totalOrders: 0, levelCount: 0, lastUpdate: null })
     const deepBook = new DXLinkDeepBook(this.client, this.params)
     deepBook.addOrdersListener(this.handleOrders)
     deepBook.addStateChangeListener(this.handleState)
@@ -199,6 +207,9 @@ export class DeepBookViewModel implements ViewModel<DeepBookVMState> {
     deepBook.removeOrdersListener(this.handleOrders)
     deepBook.removeStateChangeListener(this.handleState)
     deepBook.close()
+    // close() fires the CLOSED transition, but handleState is already detached, so reflect it in the store directly —
+    // otherwise the status chip stays stuck on the last live state when the widget is closed while mounted.
+    this.store.setState({ state: DXLinkDeepBookState.CLOSED })
   }
 
   close = (): void => {
@@ -222,8 +233,14 @@ export class DeepBookViewModel implements ViewModel<DeepBookVMState> {
     this.store.setState((s) => ({ totalOrders: s.totalOrders + orders.length }))
 
     if (pending) {
-      // Still backfilling history: keep reconstructing, but don't paint a partial snapshot.
+      // Still backfilling history: keep reconstructing, but don't paint a partial snapshot. Cancel any live flush left
+      // scheduled from a prior LIVE phase (e.g. a re-snapshot / reconnect replay) so it can't fire mid-backfill and
+      // paint a partial book — the very thing this gate exists to prevent.
       this.backfilling = true
+      if (this.flushHandle !== null) {
+        clearTimeout(this.flushHandle)
+        this.flushHandle = null
+      }
       return
     }
 
@@ -246,29 +263,44 @@ export class DeepBookViewModel implements ViewModel<DeepBookVMState> {
 
   private applyOrder(order: DeepBookOrder): void {
     const time = Number(order.time)
-    const price = typeof order.price === 'number' ? order.price : Number(order.price)
+    const price = Number(order.price)
     if (!Number.isFinite(time) || !Number.isFinite(price)) return
 
     const side: DeepBookOrderSide = order.side ?? 'SIDE_UNDEFINED'
-    const size = typeof order.size === 'number' ? order.size : Number(order.size)
+    const size = Number(order.size)
     if (time > this.lastTime) this.lastTime = time
 
-    const key = `${price}|${side}`
+    // Key by price alone, NOT by (price, side). A physical price row is one side at a time, but over a long window the
+    // market can move through a price so it flips side (a resting bid at P becomes an ask at P). Keying by (price, side)
+    // would split that into two independent entries: the new-side event never touches the old-side level, so unless
+    // ORCS emits an explicit size == 0 for the vacated side that old level is never closed — it lingers in the book and
+    // buildHeatmap extends it to the right edge as a phantom band on the same price row. Keying by price makes a flip an
+    // ordinary change: the old band is closed and the new side begins. Side is an attribute of the level, not the key.
+    const key = `${price}`
     const existing = this.book.get(key)
 
     // Drop strictly out-of-order events: an event older than the level's current state must not overwrite a newer
     // size (streams are ascending, so this only guards the rare reordered/duplicate delivery at the boundary).
     if (existing !== undefined && time < existing.sinceTime) return
 
-    // Close the previous size into a segment spanning [sinceTime, time) before applying the change.
+    // Close the previous level into a segment spanning [sinceTime, time) before applying the change. Use the side the
+    // level was RESTING on (existing.side), not the incoming event's side — they differ across a side flip, and the
+    // closed band must carry the side it actually held.
     if (existing !== undefined && time > existing.sinceTime) {
-      this.pushSegment({ price, side, size: existing.size, tStart: existing.sinceTime, tEnd: time })
+      this.pushSegment({
+        price,
+        side: existing.side,
+        size: existing.size,
+        tStart: existing.sinceTime,
+        tEnd: time,
+      })
     }
 
     if (Number.isFinite(size) && size > 0) {
       if (existing !== undefined && time === existing.sinceTime) {
-        // Same-bucket update at the same timestamp: keep the start, just replace the size (last write wins).
+        // Same-timestamp update: keep the start, replace size and side (a flip at the same instant changes side too).
         existing.size = size
+        existing.side = side
       } else {
         this.book.set(key, { price, side, size, sinceTime: time })
       }
@@ -287,7 +319,11 @@ export class DeepBookViewModel implements ViewModel<DeepBookVMState> {
   }
 
   private buildHeatmap(): DeepBookHeatmap {
-    const cutoff = this.lastTime - RETAIN_MS
+    // Retain at least RETAIN_MS, but never trim inside the requested history window: the heatmap must reach `fromTime`,
+    // so push the cutoff back to `fromTime` whenever the requested lookback is wider than RETAIN_MS. Using a fixed
+    // `lastTime - RETAIN_MS` alone would silently evict the older history the user asked for (the left edge would show
+    // only still-resting levels). MAX_SEGMENTS still bounds memory.
+    const cutoff = Math.min(this.lastTime - RETAIN_MS, this.params.fromTime)
     if (this.segments.length > 0 && this.segments[0]!.tEnd < cutoff) {
       this.segments = this.segments.filter((s) => s.tEnd >= cutoff)
     }
@@ -303,6 +339,10 @@ export class DeepBookViewModel implements ViewModel<DeepBookVMState> {
         tEnd: this.lastTime,
       })
     }
+
+    // Nothing to show (e.g. the last level was removed and all closed segments aged out this frame): return the
+    // sentinel rather than a frame carrying ±Infinity min/max extremes from the empty scan below.
+    if (segments.length === 0) return EMPTY_HEATMAP
 
     const prices = new Set<number>()
     let minPrice = Infinity

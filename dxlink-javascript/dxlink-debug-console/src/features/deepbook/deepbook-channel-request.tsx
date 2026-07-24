@@ -22,11 +22,12 @@ export const DeepBookChannelRequest = ({ value, onChange }: DeepBookChannelReque
     />
     <TextField
       label="Source"
+      required
       value={value.source}
       onChange={(e) => onChange({ ...value, source: e.target.value })}
       size="small"
       fullWidth
-      helperText="Order source, e.g. NTV. Empty = server default."
+      helperText="Order source, e.g. NTV. Required (the server has no default source)."
     />
     <TextField
       label="Granularity (heatmap)"

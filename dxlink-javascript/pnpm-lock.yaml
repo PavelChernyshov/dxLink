@@ -83,6 +83,9 @@ importers:
 
   dxlink-debug-console:
     dependencies:
+      '@devexperts/dxcharts-lite':
+        specifier: ^2.7.25
+        version: 2.7.30(rxjs@7.8.2)
       '@dxfeed/dxlink-api':
         specifier: workspace:*
         version: link:../dxlink-api

@@ -72,14 +72,14 @@ export const DeepBookChannel = ({ title, config }: DeepBookChannelProps) => {
     <ChannelWidget
       icon={<WhatshotIcon />}
       title={title}
-      subtitle={`DeepBook · ${config.symbol || '—'} / ${config.source || '(default)'}`}
+      subtitle={`DeepBook · ${config.symbol || '—'} / ${config.source || '—'}`}
       onClose={vm.close}
       status={<DeepBookStatusChip state={state} />}
     >
       <Stack spacing={2}>
         <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
           <Chip size="small" variant="outlined" label={`symbol: ${config.symbol}`} />
-          <Chip size="small" variant="outlined" label={`source: ${config.source || '(default)'}`} />
+          <Chip size="small" variant="outlined" label={`source: ${config.source || '—'}`} />
           <Chip size="small" variant="outlined" label={`granularity: ${config.granularity}`} />
           <Chip size="small" variant="outlined" label={`candles: ${config.candlePeriod}`} />
           <Chip
