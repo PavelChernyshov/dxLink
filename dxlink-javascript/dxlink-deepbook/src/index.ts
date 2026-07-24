@@ -1,4 +1,4 @@
-export { type DeepBookOrder, type DeepBookOrderSide, type DeepBookParameters } from './messages'
+export { type DeepBookLevel, type DeepBookLevelSide, type DeepBookParameters } from './messages'
 export {
   DXLinkDeepBook,
   DXLinkDeepBookState,

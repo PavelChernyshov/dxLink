@@ -1,37 +1,30 @@
 /**
  * Side of an aggregated price-level order, as serialized by the server (protobuf enum name).
  */
-export type DeepBookOrderSide = 'SIDE_UNDEFINED' | 'SIDE_BUY' | 'SIDE_SELL'
+export type DeepBookLevelSide = 'SIDE_UNDEFINED' | 'SIDE_BUY' | 'SIDE_SELL'
 
 /**
- * A single aggregated price-level order as received from the DeepBook stream.
+ * A single aggregated price-level change as received from the DeepBook stream.
  *
- * This is the JSON projection of the server-side `dxfeed.marketdata.v1.Order` protobuf message, so field names are
- * lowerCamelCase and unset (default-valued) fields are omitted. Only the fields relevant to an order-book heatmap are
- * typed explicitly; any additional order fields are preserved via the index signature.
+ * This is the JSON projection of the server-side `dxfeed.marketdata.v1alpha.DeepBookLevel` protobuf message, so field
+ * names are lowerCamelCase. Every field is optional because protobuf JSON omits defaults: an absent field means the
+ * default rather than missing data — in particular an absent `size` means `0`, i.e. the level was removed (the stream
+ * is delta-encoded).
  *
- * A `size` of `0` denotes that the price level has been removed (delta encoding).
+ * The stream carries only these four fields. Symbol and order source are properties of the request, so they are not
+ * repeated per order, and the ~18 unused fields of the shared market-data `Order` message (order/trade ids, exchange
+ * code, scope, action, event flags, nano time) are no longer sent — they cost 417 wire bytes per order where these
+ * four cost ~67.
  */
-export interface DeepBookOrder {
-  /** Symbol of this order, e.g. `"AAPL"`. */
-  readonly eventSymbol?: string
-  /** Unique per-symbol index of this order. May arrive as a string (int64) over JSON. */
-  readonly index?: number | string
-  /** Time of this order (epoch millis). May arrive as a string (int64) over JSON. */
+export interface DeepBookLevel {
+  /** Time of this change (epoch millis), quantized to the requested granularity. Arrives as a string (int64). */
   readonly time?: number | string
-  /** Sequence number used to order events sharing the same time. */
-  readonly sequence?: number
-  /** Order source, e.g. `"NTV"`. */
-  readonly source?: string
-  /** Price of this price level. */
+  /** Price of this level. */
   readonly price?: number
-  /** Resting size at this price level; `0` means the level was removed. */
+  /** Resting size at this price level; absent or `0` means the level was removed. */
   readonly size?: number
-  /** Side of this order. */
-  readonly side?: DeepBookOrderSide
-  /** Transactional event flags. */
-  readonly eventFlags?: number
-  readonly [key: string]: unknown
+  /** Side this level rests on. A price may flip side over time, so this describes the level's current state. */
+  readonly side?: DeepBookLevelSide
 }
 
 /**
@@ -49,10 +42,10 @@ export interface DeepBookParameters {
 }
 
 /**
- * Wire request payload for `streamDeepBookOrders` (matches the server proto, lowerCamelCase JSON names).
+ * Wire request payload for `streamDeepBookLevels` (matches the server proto, lowerCamelCase JSON names).
  * @internal
  */
-export interface StreamDeepBookOrdersRequest {
+export interface StreamDeepBookLevelsRequest {
   readonly symbol: string
   readonly source: string
   readonly granularity: string
@@ -60,14 +53,14 @@ export interface StreamDeepBookOrdersRequest {
 }
 
 /**
- * Wire response payload for `streamDeepBookOrders`.
+ * Wire response payload for `streamDeepBookLevels`.
  *
- * `orders` and `pending` are optional because protobuf JSON omits default values: the "caught up to live" marker frame
- * ({@code orders: [], pending: false}) can arrive as an empty object. Consumers must treat `orders ?? []` and
+ * `levels` and `pending` are optional because protobuf JSON omits default values: the "caught up to live" marker frame
+ * ({@code levels: [], pending: false}) can arrive as an empty object. Consumers must treat `levels ?? []` and
  * `pending ?? false`.
  * @internal
  */
-export interface StreamDeepBookOrdersResponse {
-  readonly orders?: DeepBookOrder[]
+export interface StreamDeepBookLevelsResponse {
+  readonly levels?: DeepBookLevel[]
   readonly pending?: boolean
 }

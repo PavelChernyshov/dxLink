@@ -9,21 +9,21 @@ import { DxLinkRpcService } from '@dxfeed/dxlink-rpc'
 import type { Subscription } from 'rxjs'
 
 import {
-  type DeepBookOrder,
+  type DeepBookLevel,
   type DeepBookParameters,
-  type StreamDeepBookOrdersRequest,
-  type StreamDeepBookOrdersResponse,
+  type StreamDeepBookLevelsRequest,
+  type StreamDeepBookLevelsResponse,
 } from './messages'
 
 /**
  * Full service name of the DeepBook RPC service, as registered by the server.
  */
-const DEEP_BOOK_SERVICE_NAME = 'dxfeed.marketdata.v1.DeepBookService'
+const DEEP_BOOK_SERVICE_NAME = 'dxfeed.marketdata.v1alpha.DeepBookService'
 
 /**
  * Server-streaming RPC method that delivers history followed by live price-level orders.
  */
-const STREAM_DEEP_BOOK_ORDERS_METHOD = 'streamDeepBookOrders'
+const STREAM_DEEP_BOOK_LEVELS_METHOD = 'streamDeepBookLevels'
 
 /**
  * Lifecycle phase of a {@link DXLinkDeepBook} stream, derived from the response flow.
@@ -48,7 +48,7 @@ export enum DXLinkDeepBookState {
  * @param orders - Aggregated price-level orders in this batch (may be empty).
  * @param pending - `true` while the historical snapshot is still being delivered; `false` once caught up to live.
  */
-export type DXLinkDeepBookOrdersListener = (orders: DeepBookOrder[], pending: boolean) => void
+export type DXLinkDeepBookOrdersListener = (orders: DeepBookLevel[], pending: boolean) => void
 
 /**
  * Listener for {@link DXLinkDeepBookState} changes.
@@ -78,10 +78,10 @@ export interface DXLinkDeepBookOptions {
  * dxLink DeepBook stream: a seamless history-plus-live stream of aggregated price-level orders for rendering an
  * order-book heatmap.
  *
- * Backed by the server-streaming RPC `dxfeed.marketdata.v1.DeepBookService/streamDeepBookOrders`. On construction it
- * opens a channel and starts streaming: first the aggregated history from `fromTime` (in batches, with `pending`
- * `true`), then live price-level updates on the same stream (`pending` `false`). Orders are keyed by (time, price,
- * side), so a renderer can apply them idempotently (last write wins), and `size === 0` denotes a removed level.
+ * Backed by the server-streaming RPC `dxfeed.marketdata.v1alpha.DeepBookService/streamDeepBookLevels`. On
+ * construction it opens a channel and starts streaming: first the aggregated history from `fromTime` (in batches, with
+ * `pending` `true`), then live price-level updates on the same stream (`pending` `false`). Orders are keyed by (time,
+ * price, side), so a renderer can apply them idempotently (last write wins), and `size === 0` denotes a removed level.
  */
 export class DXLinkDeepBook {
   /** Instrument symbol of this stream. */
@@ -128,7 +128,7 @@ export class DXLinkDeepBook {
       logLevel: this.options.logLevel,
     })
 
-    const request: StreamDeepBookOrdersRequest = {
+    const request: StreamDeepBookLevelsRequest = {
       symbol: parameters.symbol,
       source: parameters.source,
       granularity: parameters.granularity,
@@ -137,9 +137,9 @@ export class DXLinkDeepBook {
 
     this.subscription = this.rpc
       .requestStream<
-        StreamDeepBookOrdersRequest,
-        StreamDeepBookOrdersResponse
-      >(STREAM_DEEP_BOOK_ORDERS_METHOD, request, { retry: this.options.retry })
+        StreamDeepBookLevelsRequest,
+        StreamDeepBookLevelsResponse
+      >(STREAM_DEEP_BOOK_LEVELS_METHOD, request, { retry: this.options.retry })
       .subscribe({
         next: (response) => this.processResponse(response),
         error: (error) => this.processError(error),
@@ -203,18 +203,18 @@ export class DXLinkDeepBook {
     this.errorListeners.clear()
   }
 
-  private processResponse(response: StreamDeepBookOrdersResponse): void {
+  private processResponse(response: StreamDeepBookLevelsResponse): void {
     // protobuf JSON omits default values, so treat missing fields as empty/false.
     const pending = response.pending ?? false
-    const orders = response.orders ?? []
+    const levels = response.levels ?? []
 
     this.setState(pending ? DXLinkDeepBookState.HISTORY : DXLinkDeepBookState.LIVE)
 
     for (const listener of this.ordersListeners) {
       try {
-        listener(orders, pending)
+        listener(levels, pending)
       } catch (error) {
-        this.logger.error('Error in orders listener', error)
+        this.logger.error('Error in levels listener', error)
       }
     }
   }

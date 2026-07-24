@@ -1,5 +1,5 @@
 import { DXLinkDeepBook, DXLinkDeepBookState } from '@dxfeed/dxlink-api'
-import type { DeepBookOrder, DeepBookOrderSide, DXLinkClient } from '@dxfeed/dxlink-api'
+import type { DeepBookLevel, DeepBookLevelSide, DXLinkClient } from '@dxfeed/dxlink-api'
 import { createStore } from 'zustand/vanilla'
 
 import type { ViewModel } from '../../shared/view-model'
@@ -13,7 +13,7 @@ import type { DXLinkCandleData } from '../feed/candles'
  */
 export interface DeepBookSegment {
   price: number
-  side: DeepBookOrderSide
+  side: DeepBookLevelSide
   size: number
   tStart: number
   tEnd: number
@@ -47,6 +47,15 @@ export interface DeepBookVMState {
 
 // Coalesce heatmap frames to ~10fps.
 const FLUSH_INTERVAL_MS = 100
+// While backfilling, publish the received-count to the store at most this often.
+//
+// Every store write re-renders the channel widget (it is bound to React via `useVM`/`useStore`), and that subtree
+// includes the MUI chips and the chart. Writing the counter once per batch made rendering — not the network — the
+// bottleneck for a large snapshot: a 1.4M-level backfill is thousands of batches, and at ~34 ms per re-render that
+// alone accounted for minutes. Worse, it is self-reinforcing: a saturated main thread stops draining the WebSocket, the
+// server's channel goes non-writable, its demand shaper parks demand, and the whole stream paces itself to the render
+// rate. Throttling keeps the progress counter alive while removing essentially all of those renders.
+const BACKFILL_PROGRESS_MS = 250
 // Retain closed liquidity segments within this window of the latest data (older liquidity scrolls out of memory).
 // Time is the intended retention bound (it must cover the requested history window so the heatmap reaches `fromTime`).
 const RETAIN_MS = 60 * 60 * 1000
@@ -84,7 +93,7 @@ const robustPriceStep = (sortedAsc: number[], fallback: number): number => {
 /** A price level currently resting in the book, with the time its current size took effect. */
 interface BookLevel {
   price: number
-  side: DeepBookOrderSide
+  side: DeepBookLevelSide
   size: number
   sinceTime: number
 }
@@ -93,10 +102,10 @@ interface BookLevel {
  * ViewModel for one DeepBook channel — wraps {@link DXLinkDeepBook} and a reference candle feed.
  *
  * Construction is PURE (StrictMode-safe); streams open in {@link start} and release in {@link stop}, driven by the
- * view's `useEffect`. Incoming orders update a running book (last write wins per (price, side); `size === 0` removes a
- * level) and, on each change, close a liquidity {@link DeepBookSegment} for the level's previous size — producing the
- * continuous time×price field the heatmap draws. High-frequency geometry stays out of the store; only lightweight
- * status counters go to the store.
+ * view's `useEffect`. Incoming orders update a running book (last write wins per price; a `size` of `0` — which the
+ * wire omits entirely — removes the level) and, on each change, close a liquidity {@link DeepBookSegment} for the
+ * level's previous size — producing the continuous time×price field the heatmap draws. High-frequency geometry stays
+ * out of the store; only lightweight status counters go to the store.
  */
 export class DeepBookViewModel implements ViewModel<DeepBookVMState> {
   readonly store = createStore<DeepBookVMState>(() => ({
@@ -121,7 +130,8 @@ export class DeepBookViewModel implements ViewModel<DeepBookVMState> {
   private candles: DXLinkCandles | null = null
   private candleListener: ((data: DXLinkCandleData) => void) | null = null
 
-  // Running book: `${price}|${side}` -> currently-resting level. Plus closed history segments and the latest time seen.
+  // Running book: `${price}` -> currently-resting level (side is part of the level, not the key — see applyOrder).
+  // Plus closed history segments and the latest time seen.
   private readonly book = new Map<string, BookLevel>()
   private segments: DeepBookSegment[] = []
   private lastTime = 0
@@ -131,8 +141,13 @@ export class DeepBookViewModel implements ViewModel<DeepBookVMState> {
   // heatmap is painted once, when the stream flips to live, and updated normally thereafter.
   private backfilling = true
 
+  // Levels received so far. Kept out of the store so the per-batch path never triggers a React render; published to the
+  // store by `flush` and by the throttled backfill progress tick.
+  private levelsReceived = 0
+
   private heatmapListener: DeepBookHeatmapListener | null = null
   private flushHandle: ReturnType<typeof setTimeout> | null = null
+  private progressHandle: ReturnType<typeof setTimeout> | null = null
 
   constructor(
     client: DXLinkClient,
@@ -176,6 +191,8 @@ export class DeepBookViewModel implements ViewModel<DeepBookVMState> {
     this.book.clear()
     this.segments = []
     this.lastTime = 0
+    this.levelsReceived = 0
+    this.clearProgress()
     this.store.setState({ totalOrders: 0, levelCount: 0, lastUpdate: null })
     const deepBook = new DXLinkDeepBook(this.client, this.params)
     deepBook.addOrdersListener(this.handleOrders)
@@ -204,6 +221,7 @@ export class DeepBookViewModel implements ViewModel<DeepBookVMState> {
       clearTimeout(this.flushHandle)
       this.flushHandle = null
     }
+    this.clearProgress()
     deepBook.removeOrdersListener(this.handleOrders)
     deepBook.removeStateChangeListener(this.handleState)
     deepBook.close()
@@ -225,12 +243,14 @@ export class DeepBookViewModel implements ViewModel<DeepBookVMState> {
     this.candleListener?.(data)
   }
 
-  private handleOrders = (orders: DeepBookOrder[], pending: boolean): void => {
+  private handleOrders = (levels: DeepBookLevel[], pending: boolean): void => {
     if (this.deepBook === null) return
-    for (const order of orders) {
-      this.applyOrder(order)
+    for (const level of levels) {
+      this.applyOrder(level)
     }
-    this.store.setState((s) => ({ totalOrders: s.totalOrders + orders.length }))
+    // Count in a plain field, NOT the store — see BACKFILL_PROGRESS_MS. The store is published from `flush` (live) and
+    // from the throttled progress tick (backfill).
+    this.levelsReceived += levels.length
 
     if (pending) {
       // Still backfilling history: keep reconstructing, but don't paint a partial snapshot. Cancel any live flush left
@@ -241,6 +261,7 @@ export class DeepBookViewModel implements ViewModel<DeepBookVMState> {
         clearTimeout(this.flushHandle)
         this.flushHandle = null
       }
+      this.scheduleProgress()
       return
     }
 
@@ -251,6 +272,7 @@ export class DeepBookViewModel implements ViewModel<DeepBookVMState> {
         clearTimeout(this.flushHandle)
         this.flushHandle = null
       }
+      this.clearProgress()
       this.flush()
       return
     }
@@ -261,13 +283,35 @@ export class DeepBookViewModel implements ViewModel<DeepBookVMState> {
     }
   }
 
-  private applyOrder(order: DeepBookOrder): void {
+  /** Publish the backfill progress counter at most every {@link BACKFILL_PROGRESS_MS}; no heatmap is painted. */
+  private scheduleProgress(): void {
+    if (this.progressHandle !== null) return
+    this.progressHandle = setTimeout(() => {
+      this.progressHandle = null
+      if (this.deepBook === null) return
+      this.store.setState({ totalOrders: this.levelsReceived })
+    }, BACKFILL_PROGRESS_MS)
+  }
+
+  private clearProgress(): void {
+    if (this.progressHandle !== null) {
+      clearTimeout(this.progressHandle)
+      this.progressHandle = null
+    }
+  }
+
+  private applyOrder(order: DeepBookLevel): void {
+    // The wire message omits default-valued fields, so every field can be absent. For `time` and `price` that would
+    // mean 0 — neither a real instant nor a real level — so a non-finite value is a malformed order and is dropped.
     const time = Number(order.time)
     const price = Number(order.price)
     if (!Number.isFinite(time) || !Number.isFinite(price)) return
 
-    const side: DeepBookOrderSide = order.side ?? 'SIDE_UNDEFINED'
-    const size = Number(order.size)
+    const side: DeepBookLevelSide = order.side ?? 'SIDE_UNDEFINED'
+    // An absent `size`, by contrast, is the NORMAL encoding of a removal: `size === 0` is the delta-encoded tombstone
+    // and 0 is the field's default, so a removal arrives as {time, price, side} with no `size` key at all. Normalize to
+    // 0 so the removal branch below is taken deliberately rather than via Number(undefined) → NaN.
+    const size = Number(order.size ?? 0)
     if (time > this.lastTime) this.lastTime = time
 
     // Key by price alone, NOT by (price, side). A physical price row is one side at a time, but over a long window the
@@ -366,7 +410,11 @@ export class DeepBookViewModel implements ViewModel<DeepBookVMState> {
     if (this.deepBook === null) return
     const heatmap =
       this.book.size === 0 && this.segments.length === 0 ? EMPTY_HEATMAP : this.buildHeatmap()
-    this.store.setState({ levelCount: this.book.size, lastUpdate: Date.now() })
+    this.store.setState({
+      totalOrders: this.levelsReceived,
+      levelCount: this.book.size,
+      lastUpdate: Date.now(),
+    })
     this.heatmapListener?.(heatmap)
   }
 

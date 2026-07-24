@@ -10,7 +10,7 @@ import {
 } from '@dxfeed/dxlink-core'
 import { expect, test } from 'vitest'
 
-import { DXLinkDeepBook, DXLinkDeepBookState, type DeepBookOrder } from './'
+import { DXLinkDeepBook, DXLinkDeepBookState, type DeepBookLevel } from './'
 
 interface MockChannel extends DXLinkChannel {
   simulateOpen(): void
@@ -90,8 +90,8 @@ test('opens the DeepBook RPC channel and sends the request on open', () => {
   const deepBook = new DXLinkDeepBook(mock.client, PARAMS)
 
   const channel = mock.lastChannel()!
-  expect(channel.service).toBe('dxfeed.marketdata.v1.DeepBookService')
-  expect(channel.parameters['methodName']).toBe('streamDeepBookOrders')
+  expect(channel.service).toBe('dxfeed.marketdata.v1alpha.DeepBookService')
+  expect(channel.parameters['methodName']).toBe('streamDeepBookLevels')
 
   channel.simulateOpen()
   expect(channel.sentMessages).toHaveLength(1)
@@ -106,31 +106,31 @@ test('delivers history (pending=true) then live (pending=false) with state trans
   const deepBook = new DXLinkDeepBook(mock.client, PARAMS)
   const channel = mock.lastChannel()!
 
-  const batches: Array<{ orders: DeepBookOrder[]; pending: boolean }> = []
-  deepBook.addOrdersListener((orders, pending) => batches.push({ orders, pending }))
+  const batches: Array<{ levels: DeepBookLevel[]; pending: boolean }> = []
+  deepBook.addOrdersListener((levels, pending) => batches.push({ levels, pending }))
   const states: DXLinkDeepBookState[] = []
   deepBook.addStateChangeListener((state) => states.push(state))
 
   channel.simulateOpen()
   expect(deepBook.getState()).toBe(DXLinkDeepBookState.CONNECTING)
 
-  const historyOrder: DeepBookOrder = { price: 150, size: 100, side: 'SIDE_BUY', time: 1 }
+  const historyLevel: DeepBookLevel = { price: 150, size: 100, side: 'SIDE_BUY', time: 1 }
   channel.simulateMessage({
     type: 'CHANNEL_DATA',
-    payload: { orders: [historyOrder], pending: true },
+    payload: { levels: [historyLevel], pending: true },
   })
   // Marker frame: protobuf JSON omits default values, so it can be an empty object.
   channel.simulateMessage({ type: 'CHANNEL_DATA', payload: {} })
-  const liveOrder: DeepBookOrder = { price: 151, size: 0, side: 'SIDE_SELL', time: 2 }
+  const liveLevel: DeepBookLevel = { price: 151, size: 0, side: 'SIDE_SELL', time: 2 }
   channel.simulateMessage({
     type: 'CHANNEL_DATA',
-    payload: { orders: [liveOrder], pending: false },
+    payload: { levels: [liveLevel], pending: false },
   })
 
   expect(batches).toEqual([
-    { orders: [historyOrder], pending: true },
-    { orders: [], pending: false },
-    { orders: [liveOrder], pending: false },
+    { levels: [historyLevel], pending: true },
+    { levels: [], pending: false },
+    { levels: [liveLevel], pending: false },
   ])
   expect(states).toEqual([DXLinkDeepBookState.HISTORY, DXLinkDeepBookState.LIVE])
   expect(deepBook.getState()).toBe(DXLinkDeepBookState.LIVE)
