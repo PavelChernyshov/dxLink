@@ -1,6 +1,10 @@
 packages:
   - dxlink-api
   - dxlink-core
+  - dxlink-client-v2
+  - dxlink-client-ws-v2
+  - dxlink-client-http-v2
+  - dxlink-client-conformance-v2
   - dxlink-websocket-client
   - dxlink-feed
   - dxlink-dom
@@ -26,6 +30,7 @@ minimumReleaseAgeExclude:
   - '@dxfeed/*'
   - '@dxscript/*'
 allowBuilds:
+  '@scarf/scarf': set this to true or false
   esbuild: true
   protobufjs: false
   styled-components: false

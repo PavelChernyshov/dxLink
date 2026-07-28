@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package dxlink.ws.v1;
+
+option java_multiple_files = true;
+option java_outer_classname = "DxLinkSetupMessageOuterClass";
+option java_package = "com.dxfeed.dxlink.websocket.api.protobuf.v1";
+
+/*
+ * First message exchanged by both the client and the server immediately after the WebSocket
+ * handshake. Each side advertises the protocol version it wants to use and its keepalive
+ * preferences; the negotiated values are the minimum of what both peers declare. Carried by
+ * the connection-channel frame (channel = 0).
+ */
+message DxLinkSetupMessage {
+  // Protocol version string, e.g. "1.0". The client proposes a version; the server either
+  // confirms it in its own SETUP reply or rejects the connection with an UNSUPPORTED_PROTOCOL
+  // error.
+  string version = 1;
+
+  // Maximum number of seconds the sender is willing to wait between messages from the peer
+  // before treating the connection as dead. The peer must ensure it sends at least one
+  // message (data or KEEPALIVE) within this interval. Omitting this field means the sender
+  // imposes no keepalive requirement.
+  optional int32 keepalive_timeout = 2;
+
+  // Number of seconds between KEEPALIVE messages that the sender expects to receive from the
+  // peer. The peer should send KEEPALIVE at approximately this cadence when no other messages
+  // are being sent. Omitting this field means the sender has no preference.
+  optional int32 accept_keepalive_timeout = 3;
+}

@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package dxlink.test;
+
+option java_multiple_files = true;
+option java_package = "com.dxfeed.dxlink.service.protobuf.protoc";
+
+message TestRequest {
+  string payload = 1;
+}
+
+message TestResponse {
+  string payload = 1;
+}
+
+// Test service for verifying protoc plugin code generation.
+// Covers all supported interaction models.
+service TestService {
+  // Request/response interaction model.
+  rpc ReqResp(TestRequest) returns (TestResponse);
+
+  // Request/stream interaction model.
+  rpc ReqStream(TestRequest) returns (stream TestResponse);
+
+  // Stream/stream interaction model.
+  rpc StreamStream(stream TestRequest) returns (stream TestResponse);
+
+  // Stream/response interaction model.
+  rpc StreamResp(stream TestRequest) returns (TestResponse);
+}

@@ -1,0 +1,60 @@
+{
+  "name": "@dxfeed/dxlink-client-v2",
+  "version": "0.0.0",
+  "private": false,
+  "sideEffects": false,
+  "description": "dxLink v2 base client — RPC abstraction, call/stream contracts and wrappers for protocol v1.0",
+  "source": "src/index.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./build/index.d.mts",
+        "default": "./build/index.mjs"
+      },
+      "require": {
+        "types": "./build/index.d.ts",
+        "default": "./build/index.js"
+      }
+    }
+  },
+  "main": "build/index.js",
+  "module": "build/index.mjs",
+  "types": "build/index.d.ts",
+  "scripts": {
+    "prepublishOnly": "pnpm run build && pnpm run test",
+    "build": "tsup src/index.ts --format esm,cjs --dts --sourcemap --clean --out-dir build",
+    "lint": "eslint src",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.12.0"
+  },
+  "author": "Dmitry Petrov <dmitry.petrov@devexperts.com>",
+  "maintainers": [
+    {
+      "name": "Fyzu",
+      "url": "https://github.com/fyzu"
+    }
+  ],
+  "license": "MPL-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/dxfeed/dxlink.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dxfeed/dxlink/issues"
+  },
+  "homepage": "https://dxfeed.com/",
+  "keywords": [
+    "api",
+    "rpc",
+    "client",
+    "dxfeed",
+    "dxlink"
+  ],
+  "files": [
+    "/build",
+    "/package.json"
+  ]
+}

@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package dxlink.ws.v1;
+
+option java_multiple_files = true;
+option java_outer_classname = "DxLinkChannelCancelMessageOuterClass";
+option java_package = "com.dxfeed.dxlink.websocket.api.protobuf.v1";
+
+/*
+ * Sent by the client to request cancellation of a channel. Can be sent while a CHANNEL_REQUEST
+ * is still pending (before the server replies with CHANNEL_OPENED) or to close an already
+ * opened channel. The server acknowledges with DxLinkChannelClosedMessage. The target channel
+ * is identified by the enclosing frame's channel field.
+ */
+message DxLinkChannelCancelMessage {}

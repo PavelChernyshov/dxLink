@@ -4,3 +4,7 @@
 /coverage
 /build
 /node_modules
+
+# Generated protobuf code (protoc-gen-es) and vendored .proto sources — machine-managed
+**/src/gen/**
+**/*.proto

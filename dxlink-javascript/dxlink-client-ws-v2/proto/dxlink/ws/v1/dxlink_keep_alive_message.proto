@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package dxlink.ws.v1;
+
+option java_multiple_files = true;
+option java_outer_classname = "DxLinkKeepAliveMessageOuterClass";
+option java_package = "com.dxfeed.dxlink.websocket.api.protobuf.v1";
+
+/*
+ * Heartbeat message sent on the connection channel by either side to signal that the connection
+ * is still alive when no other messages are being exchanged. Each peer must send it at the
+ * cadence negotiated via DxLinkSetupMessage.accept_keepalive_timeout. The message has no
+ * payload — its presence is the signal.
+ */
+message DxLinkKeepAliveMessage {}

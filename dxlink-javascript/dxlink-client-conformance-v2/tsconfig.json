@@ -1,0 +1,11 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@dxfeed/dxlink-client-v2": ["../dxlink-client-v2/src/index.ts"],
+      "@dxfeed/dxlink-client-ws-v2": ["../dxlink-client-ws-v2/src/index.ts"],
+      "@dxfeed/dxlink-client-http-v2": ["../dxlink-client-http-v2/src/index.ts"]
+    }
+  },
+  "include": ["src"]
+}

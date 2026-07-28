@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package dxlink.ws.v1;
+
+option java_multiple_files = true;
+option java_outer_classname = "DxlinkAuthStateMessageOuterClass";
+option java_package = "com.dxfeed.dxlink.websocket.api.protobuf.v1";
+
+// Authentication state carried in DxLinkAuthStateMessage.
+enum DxlinkAuthState {
+  // Unrecognized or unset state.
+  DXLINK_AUTH_STATE_UNKNOWN = 0;
+
+  // The client has been successfully authenticated.
+  DXLINK_AUTH_STATE_AUTHORIZED = 1;
+
+  // The client is not authenticated; a valid AUTH message is required.
+  DXLINK_AUTH_STATE_UNAUTHORIZED = 2;
+}
+
+/*
+ * Sent by the server on the connection channel in response to DxLinkAuthMessage, or proactively
+ * when the server-side auth state changes (e.g. token expiry). Clients should treat an
+ * UNAUTHORIZED state as a signal to re-authenticate before opening service channels.
+ */
+message DxLinkAuthStateMessage {
+  // Current authentication state.
+  DxlinkAuthState state = 1;
+}

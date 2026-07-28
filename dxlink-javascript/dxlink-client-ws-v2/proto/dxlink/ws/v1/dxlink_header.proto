@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package dxlink.ws.v1;
+
+option java_multiple_files = true;
+option java_outer_classname = "DxLinkHeaderOuterClass";
+option java_package = "com.dxfeed.dxlink.websocket.api.protobuf.v1";
+
+/*
+ * Frame metadata applied uniformly to any message carried by an inbound or outbound frame.
+ */
+message DxLinkHeader {
+  // Optional epoch-millis timestamp recorded when the frame was sent.
+  optional int64 time = 1;
+}

@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package dxlink.ws.v1;
+
+option java_multiple_files = true;
+option java_outer_classname = "DxLinkChannelOpenedMessageOuterClass";
+option java_package = "com.dxfeed.dxlink.websocket.api.protobuf.v1";
+
+/*
+ * Sent by the server in response to DxLinkChannelRequestMessage to confirm that the requested
+ * RPC service channel has been successfully opened. The channel identifier carried in the
+ * enclosing frame matches the one from the corresponding request. After this message the client
+ * may start sending service-specific messages on the channel.
+ */
+message DxLinkChannelOpenedMessage {
+  // Fully qualified service name (proto package + service name).
+  string service = 1;
+
+  // Name of the RPC method confirmed by the server. Mirrors method_name from DxLinkChannelRequestMessage.
+  string method_name = 2;
+}

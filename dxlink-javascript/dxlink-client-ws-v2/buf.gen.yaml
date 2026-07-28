@@ -1,0 +1,11 @@
+# Regenerate with `pnpm gen` (requires the @bufbuild/protoc-gen-es devDependency + `buf`).
+# Frame protos are vendored under ./proto/dxlink/ws/v1 from dxlink-java/dxlink-websocket-api;
+# ./proto/dxlink/test is a test-only fixture (the 4-model TestService).
+version: v2
+clean: true
+plugins:
+  - local: protoc-gen-es
+    out: src/gen
+    opt:
+      - target=ts
+      - import_extension=none

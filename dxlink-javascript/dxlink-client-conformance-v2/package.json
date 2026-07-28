@@ -1,0 +1,23 @@
+{
+  "name": "@dxfeed/dxlink-client-conformance-v2",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Non-publishable conformance suite: validates the dxLink v2 clients against protoc-gen-es generated services (both wire formats). Owns the service .proto fixtures + codegen.",
+  "scripts": {
+    "gen": "buf generate",
+    "lint": "eslint src",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.12.0",
+    "@dxfeed/dxlink-client-http-v2": "workspace:*",
+    "@dxfeed/dxlink-client-v2": "workspace:*",
+    "@dxfeed/dxlink-client-ws-v2": "workspace:*"
+  },
+  "devDependencies": {
+    "@bufbuild/protoc-gen-es": "^2.13.0"
+  },
+  "author": "Dmitry Petrov <dmitry.petrov@devexperts.com>",
+  "license": "MPL-2.0"
+}

@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package dxlink.ws.v1;
+
+import "dxlink/ws/v1/dxlink_auth_message.proto";
+import "dxlink/ws/v1/dxlink_auth_state_message.proto";
+import "dxlink/ws/v1/dxlink_channel_cancel_message.proto";
+import "dxlink/ws/v1/dxlink_channel_closed_message.proto";
+import "dxlink/ws/v1/dxlink_channel_data_message.proto";
+import "dxlink/ws/v1/dxlink_channel_opened_message.proto";
+import "dxlink/ws/v1/dxlink_channel_request_message.proto";
+import "dxlink/ws/v1/dxlink_error_message.proto";
+import "dxlink/ws/v1/dxlink_header.proto";
+import "dxlink/ws/v1/dxlink_keep_alive_message.proto";
+import "dxlink/ws/v1/dxlink_setup_message.proto";
+
+option java_multiple_files = true;
+option java_outer_classname = "DxLinkWsFrameOuterClass";
+option java_package = "com.dxfeed.dxlink.websocket.api.protobuf.v1";
+
+/*
+ * Wire envelope for every dxlink WebSocket frame in either direction. The channel and header
+ * fields apply to the carried message uniformly; the inner message is selected via the oneof
+ * case discriminator. Each oneof case is restricted to one direction (client-to-server or
+ * server-to-client) or shared by both, as noted on the case comment.
+ *
+ * Tag layout:
+ *   1..2     core frame fields (channel, header)
+ *   3..10    reserved for future top-level frame fields
+ *   11..20   protocol-tier oneof cases (16..20 reserved for future protocol messages)
+ *   21..30   channel-tier oneof cases (26..30 reserved for future channel messages)
+ */
+message DxLinkWsFrame {
+  // Channel identifier. 0 for connection-channel frames; >0 for service channels.
+  int32 channel = 1;
+
+  // Frame metadata (optional timestamp).
+  DxLinkHeader header = 2;
+
+  // Reserved for future top-level frame fields.
+  reserved 3 to 10;
+
+  // Reserved for future protocol-tier oneof cases.
+  reserved 16 to 20;
+
+  // Reserved for future channel-tier oneof cases.
+  reserved 26 to 30;
+
+  // Concrete payload carried by this frame; exactly one variant is set.
+  oneof message {
+    // SETUP — protocol version and keepalive parameter negotiation. Bidirectional.
+    DxLinkSetupMessage setup = 11;
+
+    // AUTH — authenticate or re-authenticate the connection. Client-to-server.
+    DxLinkAuthMessage auth = 12;
+
+    // AUTH_STATE — current authentication state on the connection. Server-to-client.
+    DxLinkAuthStateMessage auth_state = 13;
+
+    // KEEPALIVE — heartbeat. Bidirectional.
+    DxLinkKeepAliveMessage keepalive = 14;
+
+    // ERROR — protocol-level error report. Bidirectional.
+    DxLinkErrorMessage error = 15;
+
+    // CHANNEL_REQUEST — invoke an RPC method on a new channel. Client-to-server.
+    DxLinkChannelRequestMessage channel_request = 21;
+
+    // CHANNEL_OPENED — confirmation that a requested channel has been opened. Server-to-client.
+    DxLinkChannelOpenedMessage channel_opened = 22;
+
+    // CHANNEL_CANCEL — cancel a pending or in-progress RPC call. Client-to-server.
+    DxLinkChannelCancelMessage channel_cancel = 23;
+
+    // CHANNEL_CLOSED — RPC call lifecycle has ended (cancel confirmation or completion). Server-to-client.
+    DxLinkChannelClosedMessage channel_closed = 24;
+
+    // CHANNEL_DATA — RPC payload on an open channel. Bidirectional.
+    DxLinkChannelDataMessage channel_data = 25;
+  }
+}

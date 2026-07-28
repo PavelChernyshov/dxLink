@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package dxlink.ws.v1;
+
+option java_multiple_files = true;
+option java_outer_classname = "DxLinkErrorMessageOuterClass";
+option java_package = "com.dxfeed.dxlink.websocket.api.protobuf.v1";
+
+// Machine-readable error code carried in DxLinkErrorMessage.
+enum DxlinkError {
+  // Unrecognized or unset error code. Corresponds to UNKNOWN in DxLinkWsProtocol.ErrorTypes.
+  DXLINK_ERROR_UNKNOWN = 0;
+
+  // The received message was malformed or unrecognized.
+  DXLINK_ERROR_INVALID_MESSAGE = 1;
+
+  // The action is not permitted in the current connection or channel state.
+  DXLINK_ERROR_BAD_ACTION = 2;
+
+  // The action requires authentication that was not provided or is no longer valid.
+  DXLINK_ERROR_UNAUTHORIZED = 3;
+
+  // The connection timed out due to missing keepalive messages.
+  DXLINK_ERROR_TIMEOUT = 4;
+
+  // The requested protocol version is not supported by this server.
+  DXLINK_ERROR_UNSUPPORTED_PROTOCOL = 5;
+}
+
+/*
+ * Reports a protocol-level error. The enclosing frame's channel field identifies the scope of
+ * the error: 0 means a connection-level problem; any other value refers to a specific service
+ * channel. The error field carries a machine-readable code; the message field provides a
+ * human-readable explanation suitable for logging or display.
+ */
+message DxLinkErrorMessage {
+  // Machine-readable error code.
+  DxlinkError error = 1;
+
+  // Human-readable description providing additional context about the error.
+  string message = 2;
+}

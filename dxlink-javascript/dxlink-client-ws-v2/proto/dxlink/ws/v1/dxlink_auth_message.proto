@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package dxlink.ws.v1;
+
+option java_multiple_files = true;
+option java_outer_classname = "DxLinkAuthMessageOuterClass";
+option java_package = "com.dxfeed.dxlink.websocket.api.protobuf.v1";
+
+/*
+ * Sent by the client on the connection channel to authenticate or re-authenticate. The server
+ * responds with DxLinkAuthStateMessage indicating whether authentication succeeded. May be sent
+ * at any time during the session to refresh credentials.
+ */
+message DxLinkAuthMessage {
+  // Bearer authentication token supplied by the client.
+  string token = 1;
+}

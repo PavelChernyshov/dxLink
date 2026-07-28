@@ -1,0 +1,11 @@
+# Regenerate with `pnpm gen` (requires the @bufbuild/protoc-gen-es devDependency + `buf`).
+# ./proto/dxlink/test holds the RPC service fixtures (unary + 4-model) used to validate the
+# generated-service pipeline (createService) against every client in both wire formats.
+version: v2
+clean: true
+plugins:
+  - local: protoc-gen-es
+    out: src/gen
+    opt:
+      - target=ts
+      - import_extension=none

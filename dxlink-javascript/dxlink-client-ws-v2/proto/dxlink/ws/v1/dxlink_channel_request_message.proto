@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package dxlink.ws.v1;
+
+option java_multiple_files = true;
+option java_outer_classname = "DxLinkChannelRequestMessageOuterClass";
+option java_package = "com.dxfeed.dxlink.websocket.api.protobuf.v1";
+
+/*
+ * Sent by the client to invoke an RPC method on a new channel. The client picks a channel
+ * identifier (carried in the enclosing frame) that is not currently in use and specifies which
+ * service method it wants to call. The server either confirms by replying with
+ * DxLinkChannelOpenedMessage on the same channel, or rejects with DxLinkErrorMessage.
+ */
+message DxLinkChannelRequestMessage {
+  // Fully qualified service name (proto package + service name).
+  string service = 1;
+
+  // Name of the RPC method to invoke on the service.
+  string method_name = 2;
+}

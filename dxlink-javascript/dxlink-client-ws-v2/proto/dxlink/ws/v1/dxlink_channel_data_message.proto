@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package dxlink.ws.v1;
+
+import "google/protobuf/any.proto";
+
+option java_multiple_files = true;
+option java_outer_classname = "DxLinkChannelDataMessageOuterClass";
+option java_package = "com.dxfeed.dxlink.websocket.api.protobuf.v1";
+
+/*
+ * Carries an opaque RPC payload on an open channel. The concrete payload message type is
+ * implicit from the channel's service contract.
+ */
+message DxLinkChannelDataMessage {
+  // RPC payload packed as google.protobuf.Any. The receiver decodes it according to the
+  // channel's service-specific RPC contract.
+  google.protobuf.Any payload = 1;
+}

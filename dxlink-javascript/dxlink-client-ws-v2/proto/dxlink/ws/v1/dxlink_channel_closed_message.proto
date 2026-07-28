@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package dxlink.ws.v1;
+
+option java_multiple_files = true;
+option java_outer_classname = "DxLinkChannelClosedMessageOuterClass";
+option java_package = "com.dxfeed.dxlink.websocket.api.protobuf.v1";
+
+/*
+ * Sent by the server to signal that the RPC call lifecycle on the channel has ended. Either
+ * as confirmation of a client-initiated DxLinkChannelCancelMessage, or when the RPC call has
+ * finished naturally (in which case the channel is closed automatically). After receiving this
+ * message the client must not send further messages on the channel identified by the enclosing
+ * frame.
+ */
+message DxLinkChannelClosedMessage {}

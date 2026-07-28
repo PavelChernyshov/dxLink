@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package dxlink.test;
+
+option java_multiple_files = true;
+
+// Unary-only test fixture used to drive the HTTP client's createService end-to-end
+// (HTTP/JSON transcoding supports REQUEST_RESPONSE only).
+message QuoteRequest {
+  string symbol = 1;
+}
+
+message QuoteResponse {
+  string symbol = 1;
+  double bid = 2;
+  double ask = 3;
+}
+
+service QuoteService {
+  // Unary (REQUEST_RESPONSE) — the only interaction model HTTP supports.
+  rpc GetQuote(QuoteRequest) returns (QuoteResponse);
+}
