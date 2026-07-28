@@ -48,6 +48,8 @@ describe('getDefaultWsUrl', () => {
   it('returns the local dev server verbatim in development (ignores the page location)', () => {
     const location = { protocol: 'https:', host: 'demo.dxfeed.com', pathname: '/debug' }
     expect(getDefaultWsUrl(location, false)).toBe(DEV_WS_URL)
-    expect(getDefaultWsUrl(location, false)).toBe('ws://localhost:9959')
+    // Pinned literally: the dxLink WebSocket server rides on Spring Boot's Netty port (server.port: 8080), so this
+    // must track that, not the historical 9959.
+    expect(getDefaultWsUrl(location, false)).toBe('ws://localhost:8080')
   })
 })

@@ -4,7 +4,7 @@
  * the box (the page is served from localhost in dev, which is not itself a dxLink
  * endpoint). Point it elsewhere (e.g. the shared dev relay) in the connection form.
  */
-export const DEV_WS_URL = 'ws://localhost:9959'
+export const DEV_WS_URL = 'ws://localhost:8080'
 
 /** The subset of `Location` the URL derivation actually reads. */
 export type LocationLike = Pick<Location, 'protocol' | 'host' | 'pathname'>

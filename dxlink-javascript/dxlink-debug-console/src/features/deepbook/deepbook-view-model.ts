@@ -64,6 +64,9 @@ const RETAIN_MS = 60 * 60 * 1000
 // cut short (never reaching the requested `fromTime`). At observed churn ~30k spans only ~10-15 min, so keep it high.
 // TEMPORARY: bumped to give more history headroom until the renderer moves to a raster (which removes the cap need).
 const MAX_SEGMENTS = 240000
+// How far the segment list may overshoot MAX_SEGMENTS before it is trimmed back down in one splice. See pushSegment:
+// this is what keeps trimming amortised O(1) per event instead of O(MAX_SEGMENTS).
+const SEGMENTS_TRIM_SLACK = 50000
 
 const EMPTY_HEATMAP: DeepBookHeatmap = {
   segments: [],
@@ -357,7 +360,12 @@ export class DeepBookViewModel implements ViewModel<DeepBookVMState> {
   private pushSegment(segment: DeepBookSegment): void {
     if (segment.tEnd <= segment.tStart) return
     this.segments.push(segment)
-    if (this.segments.length > MAX_SEGMENTS) {
+    // Trim in bulk, never once per push. `splice(0, n)` shifts every surviving element, so trimming by one on each
+    // push costs O(MAX_SEGMENTS) per event. Measured on a 1.5M-level backfill: free up to the cap, then a flat ~160us
+    // per event (~16s per 100k levels) — ~190s of the ~192s that reconstruction took, with no network, parsing or
+    // rendering involved. Letting the array overshoot by SEGMENTS_TRIM_SLACK and dropping the whole excess in one
+    // splice amortises it to O(1) per event. The cap is a memory bound, so overshooting it briefly is harmless.
+    if (this.segments.length > MAX_SEGMENTS + SEGMENTS_TRIM_SLACK) {
       this.segments.splice(0, this.segments.length - MAX_SEGMENTS)
     }
   }
