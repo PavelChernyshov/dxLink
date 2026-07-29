@@ -1,6 +1,6 @@
 {
   "name": "@dxfeed/dxlink-client-conformance-v2",
-  "version": "0.0.0",
+  "version": "0.0.0-alpha.1",
   "private": true,
   "description": "Non-publishable conformance suite: validates the dxLink v2 clients against protoc-gen-es generated services (both wire formats). Owns the service .proto fixtures + codegen.",
   "scripts": {

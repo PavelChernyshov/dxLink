@@ -1,6 +1,6 @@
 {
   "name": "@dxfeed/dxlink-client-http-v2",
-  "version": "0.0.0",
+  "version": "0.0.0-alpha.1",
   "private": false,
   "sideEffects": false,
   "description": "dxLink v2 HTTP client — protocol v1.0 RPC over the Connect protocol (fetch)",
