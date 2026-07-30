@@ -1,4 +1,5 @@
 import {
+  bidiStream,
   type DescMethod,
   type DxLinkAuthStateChangeListener,
   type DxLinkAuthToken,
@@ -12,6 +13,7 @@ import {
   type DxLinkErrorListener,
   type DxLinkMessageCodec,
   type DxLinkMethodDescriptor,
+  type DxLinkRequestSource,
   DxLinkRpcError,
   type DxLinkServiceClient,
   type DxLinkUnsubscribe,
@@ -239,7 +241,7 @@ export class DxLinkWebSocketClient implements DxLinkClient {
       }
     }
 
-    if (this.connectionState === DxLinkConnectionState.CONNECTED) {
+    if (this.canRequestChannels()) {
       this.sendChannelRequest(entry as ChannelEntry)
     }
 
@@ -250,9 +252,19 @@ export class DxLinkWebSocketClient implements DxLinkClient {
     const methods = service.method as Record<string, DescMethod>
     const api: Record<string, unknown> = {}
 
-    // This transport carries unary and server-streaming RPCs only. Client-streaming and
-    // bidi-streaming need a graceful request half-close, which the dxLink v1.0 wire does not yet
-    // provide (see PLAN-v2.md); mapping them here would be unsound, so they are rejected.
+    // Unary, server-streaming and bidi-streaming are carried; client-streaming is not.
+    //
+    // The dxLink v1.0 wire has no graceful request half-close (see PLAN-v2.md), and that gap is fatal
+    // for **client-streaming** only: its contract is "N requests, then one response", so the server
+    // cannot know when to answer without being told the requests ended. Bidi does not depend on that
+    // signal — it is a duplex subscription, where the server streams responses as requests arrive and
+    // never waits for input completion. Closing the request side here sets `inputClosed` and puts
+    // nothing on the wire, so it cannot be mistaken for `CHANNEL_CANCEL`; only an abort cancels the
+    // channel. This is the same shape `DxLinkRpcService.streamStream` has shipped on 0.9.
+    //
+    // The residual risk is a *server* that gives a bidi method request-completion semantics. Nothing
+    // in the dxTrade API does: the two bidi RPCs are `PositionMetricsService.streamPositionMetrics`
+    // and `ConversionRatesService.streamConversionRates`, both long-lived subscriptions.
     for (const [localName, method] of Object.entries(methods)) {
       const input = { typeName: method.input.typeName, schema: method.input }
       const output = { typeName: method.output.typeName, schema: method.output }
@@ -280,6 +292,18 @@ export class DxLinkWebSocketClient implements DxLinkClient {
           }
           api[localName] = (request: unknown, options?: DxLinkCallOptions) =>
             serverStream(this, descriptor, request, options)
+          break
+        }
+        case 'bidi_streaming': {
+          const descriptor: DxLinkMethodDescriptor<unknown, unknown> = {
+            service: service.typeName,
+            name: method.name,
+            model: 'STREAM_STREAM',
+            input,
+            output,
+          }
+          api[localName] = (requests: DxLinkRequestSource<unknown>, options?: DxLinkCallOptions) =>
+            bidiStream(this, descriptor, requests, options)
           break
         }
         default:
@@ -413,9 +437,17 @@ export class DxLinkWebSocketClient implements DxLinkClient {
 
   private onAuthState(authorized: boolean): void {
     this.setAuthState(authorized ? DxLinkAuthState.AUTHORIZED : DxLinkAuthState.UNAUTHORIZED)
-    // Flush pending channels once auth resolves either way — services that don't require auth
-    // proceed; those that do will be rejected per-channel with an ERROR frame.
-    this.flushPendingChannels()
+    // Only an AUTHORIZED state may release pending channels, matching DXLinkWebSocketClient.
+    //
+    // Flushing on UNAUTHORIZED too looks harmless — the assumption was that a channel needing auth
+    // would come back with its own per-channel ERROR frame. It does not: a server announces
+    // AUTH_STATE: UNAUTHORIZED as its initial state, before it has processed our AUTH, and answers a
+    // channel opened in that window with a *connection-level* `BAD_ACTION: AUTH step missing`. That
+    // fails the channel, and nothing re-requests it once AUTHORIZED arrives, so the call hangs
+    // forever.
+    if (authorized) {
+      this.flushPendingChannels()
+    }
   }
 
   // ── channel handling ────────────────────────────────────────────────────────
@@ -454,6 +486,21 @@ export class DxLinkWebSocketClient implements DxLinkClient {
     if (channel !== DXLINK_CONNECTION_CHANNEL) {
       this.failChannel(channel, error)
     }
+  }
+
+  /**
+   * Whether a channel request may go out now.
+   *
+   * `DXLinkWebSocketClient` gates `openChannel` on `CONNECTED && AUTHORIZED`; it can require the
+   * authorized state unconditionally because it only enters `CONNECTED` once authorization lands. This
+   * client reaches `CONNECTED` on the server SETUP reply, before AUTH, so the auth state has to be
+   * checked separately — and only when a token is configured at all, since an unauthenticated
+   * connection never produces an AUTH_STATE to wait for.
+   */
+  private canRequestChannels(): boolean {
+    if (this.connectionState !== DxLinkConnectionState.CONNECTED) return false
+
+    return this.authToken === undefined || this.authState === DxLinkAuthState.AUTHORIZED
   }
 
   private sendChannelRequest(entry: ChannelEntry): void {
@@ -526,10 +573,19 @@ export class DxLinkWebSocketClient implements DxLinkClient {
     }
   }
 
+  /**
+   * Allocates the next client-initiated channel id.
+   *
+   * **Client-initiated channels must be odd.** Channel 0 is the connection itself and even ids are
+   * reserved for server-initiated channels, so a server rejects an even one outright — dxLink-java
+   * answers `BAD_ACTION: "Protocol violation with an even channel usage."` on the *connection*
+   * channel, which fails the call without naming it. `DXLinkWebSocketClient` has always stepped by two
+   * from 1 (`globalChannelId += 2`); this does the same.
+   */
   private allocateChannel(): number {
     let id = this.nextChannel
-    while (id === DXLINK_CONNECTION_CHANNEL || this.channels.has(id)) id++
-    this.nextChannel = id + 1
+    while (this.channels.has(id)) id += 2
+    this.nextChannel = id + 2
     return id
   }
 

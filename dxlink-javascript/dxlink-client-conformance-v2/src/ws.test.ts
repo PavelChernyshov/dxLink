@@ -202,11 +202,12 @@ describe.each<Format>(['json', 'protobuf'])(
 )
 
 describe('DxLinkWebSocketClient.createService interaction-model validation', () => {
-  it('rejects a generated service that requires unsupported streaming models', () => {
+  it('rejects a generated service that requires client-streaming', () => {
     const harness = makeHarness('protobuf')
     const client = new DxLinkWebSocketClient({ url: 'ws://test', transport: harness.transport })
-    // TestService has client-streaming and bidi-streaming RPCs, which the WS transport cannot
-    // model until the half-close protocol item is resolved (see PLAN-v2.md).
+    // TestService has a client-streaming RPC, whose "N requests then one response" contract needs the
+    // request half-close the dxLink v1.0 wire cannot express (see PLAN-v2.md). Its bidi RPC is fine —
+    // a duplex subscription never waits for input completion — so bidi alone no longer throws.
     expect(() => client.createService(TestService)).toThrow(DxLinkRpcError)
   })
 })

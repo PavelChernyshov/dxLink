@@ -19,19 +19,19 @@ Protocol v1.0 is **RPC-first**: every channel is one RPC call
 
 Server RPC handler contract (Reactor) maps 1:1 to our surface:
 
-| Model | Server | Client sends → recv | Client surface |
-|---|---|---|---|
-| `REQUEST_RESPONSE` | `Mono<O> handle(IN)` | 1 → 1 | `Promise<O>` |
-| `REQUEST_STREAM` | `Flux<O> handle(IN)` | 1 → N | `ReadableStream<O>` |
-| `STREAM_RESPONSE` | `Mono<O> handle(Flux<IN>)` | N → 1 | `WritableStream<I>` + `Promise<O>` |
-| `STREAM_STREAM` | `Flux<O> handle(Flux<IN>)` | N → N | `WritableStream<I>` + `ReadableStream<O>` |
+| Model              | Server                     | Client sends → recv | Client surface                            |
+| ------------------ | -------------------------- | ------------------- | ----------------------------------------- |
+| `REQUEST_RESPONSE` | `Mono<O> handle(IN)`       | 1 → 1               | `Promise<O>`                              |
+| `REQUEST_STREAM`   | `Flux<O> handle(IN)`       | 1 → N               | `ReadableStream<O>`                       |
+| `STREAM_RESPONSE`  | `Mono<O> handle(Flux<IN>)` | N → 1               | `WritableStream<I>` + `Promise<O>`        |
+| `STREAM_STREAM`    | `Flux<O> handle(Flux<IN>)` | N → N               | `WritableStream<I>` + `ReadableStream<O>` |
 
 ## Locked decisions
 
 1. **`dxlink-client` is the base package; everything else is an extension.** The base defines the
    `DxLinkClient` RPC abstraction + call/stream contracts + the four wrappers + codec seam. Concrete
    clients (WS now; HTTP/gRPC later) and the rxjs adapter are extension packages that depend on the base.
-2. **`DxLinkClient` IS the RPC abstraction** — WS / HTTP / gRPC are interchangeable *implementations*.
+2. **`DxLinkClient` IS the RPC abstraction** — WS / HTTP / gRPC are interchangeable _implementations_.
 3. **Two wire formats**, chosen per client instance (`format: 'protobuf' | 'json'`).
 4. **Codegen: `protoc-gen-es` (@bufbuild/protobuf) via the protoc plugin pipeline — NOT `buf generate`.**
    Runs through the `com.google.protobuf` gradle plugin already used in `dxtrade-api-specs` (same pipeline
@@ -46,11 +46,11 @@ Server RPC handler contract (Reactor) maps 1:1 to our surface:
 6. **Native ES/WHATWG primitives only — no rxjs in core:** unary → `Promise`, streams → WHATWG
    `ReadableStream`/`WritableStream`, cancellation → `AbortSignal`.
 7. **Future-proofing to WebTransport is the decider for #6.** The platform converged on WHATWG Streams
-   + AbortSignal: a WebTransport bidi stream *is* `{ readable, writable }` (== `DxLinkCall`),
-   `WebSocketStream.opened` → `{ readable, writable }`, `fetch` body is a `ReadableStream`.
-   - Transport boundary = a byte duplex `{ readable: ReadableStream<Uint8Array>, writable: WritableStream<Uint8Array> }`.
-   - Codec = composable `TransformStream`s (`pipeThrough`/`pipeTo`); gzip/json/protobuf = swap a transform.
-   - `DxLinkCall` = `{ readable, writable }` → on WebTransport each call becomes a real QUIC bidi stream
+   - AbortSignal: a WebTransport bidi stream _is_ `{ readable, writable }` (== `DxLinkCall`),
+     `WebSocketStream.opened` → `{ readable, writable }`, `fetch` body is a `ReadableStream`.
+   * Transport boundary = a byte duplex `{ readable: ReadableStream<Uint8Array>, writable: WritableStream<Uint8Array> }`.
+   * Codec = composable `TransformStream`s (`pipeThrough`/`pipeTo`); gzip/json/protobuf = swap a transform.
+   * `DxLinkCall` = `{ readable, writable }` → on WebTransport each call becomes a real QUIC bidi stream
      (native multiplexing, dropping manual channel-id framing); datagram mode is just another duplex.
 8. **New parallel packages with temporary `-v2` suffix.**
 9. **Public API naming: `DxLink` prefix** (e.g. `DxLinkClient`, `DxLinkMethodDescriptor`) — matching the
@@ -74,14 +74,14 @@ Byte duplex (transport)            { readable, writable }  ← WebSocket now; We
 
 ## Packages
 
-| Package (temporary) | Role | Deps | Promoted name |
-|---|---|---|---|
-| **`@dxfeed/dxlink-client-v2`** (base) | `DxLinkClient` (incl. `createService`), `DxLinkCall`, `DxLinkMethodDescriptor`, `DxLinkServiceClient`, `DxLinkByteDuplex` + 4 wrappers + `DxLinkMessageCodec`/`jsonMessageCodec` + state/auth/error types (`createService` is implemented per transport, not in the base) | `@bufbuild/protobuf` | `@dxfeed/dxlink-client` |
-| `@dxfeed/dxlink-client-ws-v2` (ext) | `DxLinkWebSocketClient`: json + protobuf frame codecs, channel mux, SETUP/AUTH/KEEPALIVE, reconnect | base, `@bufbuild/protobuf` | `@dxfeed/dxlink-client-ws` |
-| **`@dxfeed/dxlink-client-http-v2`** (ext) | `DxLinkHttpClient`: `fetch` over the `dxlink-http-framework` HTTP/JSON transcoding binding (`POST /{service}/{method}`, canonical protobuf-JSON, `Bearer` auth). **Unary only** (server returns `505` for streaming) | base, `@bufbuild/protobuf` | `@dxfeed/dxlink-client-http` |
-| `@dxfeed/dxlink-rpc-rxjs-v2` *(optional, ext)* | rxjs adapter (`from(readableStream)`) | base, rxjs | `@dxfeed/dxlink-rpc-rxjs` |
-| **`@dxfeed/dxlink-client-conformance-v2`** *(private, not published)* | Conformance suite: owns the RPC **service `.proto` fixtures** (`TestService`/`EchoService`/`QuoteService`) + their `protoc-gen-es` codegen, and validates every client against the **generated** services via `createService` in both wire formats. Resolves the sibling packages to their `src` (vitest alias + tsconfig `paths`) so it needs no prior build | base, ws, http, `@bufbuild/protobuf` | — (never published) |
-| **`@dxtrade/dxtrade-api`** | generated messages + enums + service descriptors (`GenService`) — **transport-neutral, no dxlink dep**; **built inside `dxtrade-api-specs`** (no `-v2`; contract-versioned) | `@bufbuild/protobuf` | same |
+| Package (temporary)                                                   | Role                                                                                                                                                                                                                                                                                                                                                          | Deps                                 | Promoted name                |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ | ---------------------------- |
+| **`@dxfeed/dxlink-client-v2`** (base)                                 | `DxLinkClient` (incl. `createService`), `DxLinkCall`, `DxLinkMethodDescriptor`, `DxLinkServiceClient`, `DxLinkByteDuplex` + 4 wrappers + `DxLinkMessageCodec`/`jsonMessageCodec` + state/auth/error types (`createService` is implemented per transport, not in the base)                                                                                     | `@bufbuild/protobuf`                 | `@dxfeed/dxlink-client`      |
+| `@dxfeed/dxlink-client-ws-v2` (ext)                                   | `DxLinkWebSocketClient`: json + protobuf frame codecs, channel mux, SETUP/AUTH/KEEPALIVE, reconnect                                                                                                                                                                                                                                                           | base, `@bufbuild/protobuf`           | `@dxfeed/dxlink-client-ws`   |
+| **`@dxfeed/dxlink-client-http-v2`** (ext)                             | `DxLinkHttpClient`: `fetch` over the `dxlink-http-framework` HTTP/JSON transcoding binding (`POST /{service}/{method}`, canonical protobuf-JSON, `Bearer` auth). **Unary only** (server returns `505` for streaming)                                                                                                                                          | base, `@bufbuild/protobuf`           | `@dxfeed/dxlink-client-http` |
+| `@dxfeed/dxlink-rpc-rxjs-v2` _(optional, ext)_                        | rxjs adapter (`from(readableStream)`)                                                                                                                                                                                                                                                                                                                         | base, rxjs                           | `@dxfeed/dxlink-rpc-rxjs`    |
+| **`@dxfeed/dxlink-client-conformance-v2`** _(private, not published)_ | Conformance suite: owns the RPC **service `.proto` fixtures** (`TestService`/`EchoService`/`QuoteService`) + their `protoc-gen-es` codegen, and validates every client against the **generated** services via `createService` in both wire formats. Resolves the sibling packages to their `src` (vitest alias + tsconfig `paths`) so it needs no prior build | base, ws, http, `@bufbuild/protobuf` | — (never published)          |
+| **`@dxtrade/dxtrade-api`**                                            | generated messages + enums + service descriptors (`GenService`) — **transport-neutral, no dxlink dep**; **built inside `dxtrade-api-specs`** (no `-v2`; contract-versioned)                                                                                                                                                                                   | `@bufbuild/protobuf`                 | same                         |
 
 The client packages ship no service fixtures. **`dxlink-client-ws-v2` keeps only its production frame-proto codegen** (`dxlink/ws/v1/*.proto` → `src/gen`, required by `createProtobufFrameCodec`); **`dxlink-client-http-v2` has no codegen at all**. All RPC-service fixtures + their codegen live in the conformance package.
 
@@ -101,27 +101,61 @@ interface DxLinkClient {
   connect(): void
   disconnect(): void
   getState(): DxLinkConnectionState
-  onStateChange(l: (state: DxLinkConnectionState, prev: DxLinkConnectionState) => void): DxLinkUnsubscribe
+  onStateChange(
+    l: (state: DxLinkConnectionState, prev: DxLinkConnectionState) => void
+  ): DxLinkUnsubscribe
 
   setAuthToken(token: string | (() => string | Promise<string>)): void
   getAuthState(): DxLinkAuthState
   onAuthStateChange(l: (state: DxLinkAuthState) => void): DxLinkUnsubscribe
   onError(l: (error: DxLinkError) => void): DxLinkUnsubscribe
 
-  createCall<I, O>(method: DxLinkMethodDescriptor<I, O>, options?: DxLinkCallOptions): DxLinkCall<I, O>
+  createCall<I, O>(
+    method: DxLinkMethodDescriptor<I, O>,
+    options?: DxLinkCallOptions
+  ): DxLinkCall<I, O>
 }
 
-interface DxLinkCallOptions { signal?: AbortSignal }
+interface DxLinkCallOptions {
+  signal?: AbortSignal
+}
 type DxLinkUnsubscribe = () => void
 
 // wrappers (free functions over createCall; generated stubs call these)
-function unary<I, O>(c: DxLinkClient, m: DxLinkMethodDescriptor<I, O>, req: I, o?: DxLinkCallOptions): Promise<O>
-function serverStream<I, O>(c: DxLinkClient, m: DxLinkMethodDescriptor<I, O>, req: I, o?: DxLinkCallOptions): ReadableStream<O>
-function clientStream<I, O>(c: DxLinkClient, m: DxLinkMethodDescriptor<I, O>, reqs: ReadableStream<I> | AsyncIterable<I>, o?: DxLinkCallOptions): Promise<O>
-function bidiStream<I, O>(c: DxLinkClient, m: DxLinkMethodDescriptor<I, O>, reqs: ReadableStream<I> | AsyncIterable<I>, o?: DxLinkCallOptions): ReadableStream<O>
+function unary<I, O>(
+  c: DxLinkClient,
+  m: DxLinkMethodDescriptor<I, O>,
+  req: I,
+  o?: DxLinkCallOptions
+): Promise<O>
+function serverStream<I, O>(
+  c: DxLinkClient,
+  m: DxLinkMethodDescriptor<I, O>,
+  req: I,
+  o?: DxLinkCallOptions
+): ReadableStream<O>
+function clientStream<I, O>(
+  c: DxLinkClient,
+  m: DxLinkMethodDescriptor<I, O>,
+  reqs: ReadableStream<I> | AsyncIterable<I>,
+  o?: DxLinkCallOptions
+): Promise<O>
+function bidiStream<I, O>(
+  c: DxLinkClient,
+  m: DxLinkMethodDescriptor<I, O>,
+  reqs: ReadableStream<I> | AsyncIterable<I>,
+  o?: DxLinkCallOptions
+): ReadableStream<O>
 
-interface DxLinkUnaryCall<O> { readonly response: Promise<O>; cancel(reason?: unknown): void }
-function unaryCall<I, O>(c: DxLinkClient, m: DxLinkMethodDescriptor<I, O>, req: I): DxLinkUnaryCall<O>
+interface DxLinkUnaryCall<O> {
+  readonly response: Promise<O>
+  cancel(reason?: unknown): void
+}
+function unaryCall<I, O>(
+  c: DxLinkClient,
+  m: DxLinkMethodDescriptor<I, O>,
+  req: I
+): DxLinkUnaryCall<O>
 
 // ── transport / codec seam (base) ──────────────────────────────────────────
 interface DxLinkByteDuplex {
@@ -138,12 +172,12 @@ interface DxLinkFrameCodec {
 class DxLinkWebSocketClient implements DxLinkClient {
   constructor(config: {
     url: string
-    format?: 'protobuf' | 'json'                 // default 'protobuf'
+    format?: 'protobuf' | 'json' // default 'protobuf'
     authToken?: string | (() => string | Promise<string>)
     keepaliveInterval?: number
     keepaliveTimeout?: number
     maxReconnectAttempts?: number
-    transport?: (url: string, subprotocol: string) => Promise<DxLinkByteDuplex>  // future: WebSocketStream/WebTransport
+    transport?: (url: string, subprotocol: string) => Promise<DxLinkByteDuplex> // future: WebSocketStream/WebTransport
   })
 }
 
@@ -165,15 +199,15 @@ interface DxLinkClient {
 
 // usage — OrderEntryService is the GenService generated into @dxtrade/dxtrade-api
 const orders = dxlink.createService(OrderEntryService)
-const res = await orders.issueOrder(req, { signal })      // fully typed, no generated stub class
+const res = await orders.issueOrder(req, { signal }) // fully typed, no generated stub class
 ```
 
 ## Wire-format mapping (handled entirely inside the frame codec)
 
-| | Frame envelope | RPC payload |
-|---|---|---|
-| json | custom flat `{type, channel, time?, correlationId?, service?, version?, parameters?, payload?}` | `toJson(msg)` — canonical protobuf-JSON, bare (type known from method) |
-| protobuf | `DxLinkWsFrame{channel, header, oneof message}` (from `dxlink/ws/v1/*.proto`) | `anyPack(msg)` → `google.protobuf.Any` |
+|          | Frame envelope                                                                                  | RPC payload                                                            |
+| -------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| json     | custom flat `{type, channel, time?, correlationId?, service?, version?, parameters?, payload?}` | `toJson(msg)` — canonical protobuf-JSON, bare (type known from method) |
+| protobuf | `DxLinkWsFrame{channel, header, oneof message}` (from `dxlink/ws/v1/*.proto`)                   | `anyPack(msg)` → `google.protobuf.Any`                                 |
 
 Correlation stays **one channel per call** (identical for both formats; JSON-only `correlationId` unused).
 
@@ -207,12 +241,28 @@ descriptors, added only if DX calls for it.
 
 ## Open items
 
-1. **Half-close (protocol).** dxLink v1.0 wire has no dedicated half-close frame — only `CHANNEL_CANCEL`,
-   which the server treats as a hard cancel (`ChannelClosedException`), not graceful input-complete. So
-   `WritableStream.close()` can't be distinguished from `.abort()` on the wire → blocks clean
-   `STREAM_RESPONSE`/`STREAM_STREAM`. **Unary + server-stream are unaffected**, and every real dxTrade
-   service is unary (streaming only in `TestService`). Settle with `dxlink-java` owners before shipping the
-   two client-streaming models. `WritableStream` stays the right (superset) abstraction.
+1. **Half-close (protocol) — now scoped to `STREAM_RESPONSE` only.** dxLink v1.0 wire has no dedicated
+   half-close frame — only `CHANNEL_CANCEL`, which the server treats as a hard cancel
+   (`ChannelClosedException`), not graceful input-complete. `WritableStream` stays the right (superset)
+   abstraction.
+
+   This blocks **`STREAM_RESPONSE`** (client-streaming), whose contract is "N requests, then one
+   response": the server cannot know when to answer without being told the requests ended. It does
+   **not** block **`STREAM_STREAM`** (bidi), which is a duplex subscription — the server streams
+   responses as requests arrive and never waits for input completion. In `DxLinkWebSocketClient`,
+   closing the request side sets `inputClosed` and puts nothing on the wire, so it cannot be mistaken
+   for a cancel; only `.abort()` cancels the channel. That is the same shape
+   `DxLinkRpcService.streamStream` has shipped on 0.9. **Bidi is therefore enabled in `createService`;
+   client-streaming still throws `DxLinkRpcError`.**
+
+   Correction to an earlier assumption here: it is **not** true that "every real dxTrade service is
+   unary (streaming only in `TestService`)". The published `@dxtrade/schemas` (24.0.0-alpha.45) declares
+   **44 unary, 11 server-streaming and 2 bidi-streaming** RPCs — the bidi pair being
+   `PositionMetricsService.streamPositionMetrics` and `ConversionRatesService.streamConversionRates`,
+   both long-lived subscriptions. There are **no** client-streaming RPCs in the whole schema set, so the
+   remaining gap blocks nothing that exists today. Still worth settling `STREAM_RESPONSE` with the
+   `dxlink-java` owners, but it is no longer on the critical path.
+
 2. **Dependency direction for stubs — RESOLVED.** Reusing `protoc-gen-es` descriptors +
    `dxlink.createService(...)` means `@dxtrade/dxtrade-api` carries only messages + descriptors and stays
    transport-neutral (no `@dxfeed/dxlink-client-v2` dependency). No cross-repo coupling.
@@ -225,9 +275,9 @@ Status legend: ✅ done · 🟡 partial (bufbuild/server-blocked remainder) · �
    `EchoService` (unary/server-stream) vendored into `dxlink-client-ws-v2/proto/` and generated with `protoc-gen-es`
    via `buf generate` (`pnpm gen`). Proven: `toBinary`/`fromBinary` frame round-trip, `anyPack`/`anyUnpack` payloads,
    `toJson`/`fromJson`, and a `GenService` descriptor driving `createService(...)` with correct per-method types
-   (`dual-format.test.ts`, `protobuf-codec.test.ts`). *(Still pending: wiring the same `protoc-gen-es` step into the
+   (`dual-format.test.ts`, `protobuf-codec.test.ts`). _(Still pending: wiring the same `protoc-gen-es` step into the
    `dxtrade-api-specs` gradle pipeline so the real business API ships as `@dxtrade/dxtrade-api` — that repo + gradle
-   are out of this workspace. Live-server validation against `wss://dxlink-md-ws-dev.dxkube.com` also pending.)*
+   are out of this workspace. Live-server validation against `wss://dxlink-md-ws-dev.dxkube.com` also pending.)_
 2. ✅ **`@dxfeed/dxlink-client-v2` (base)** — contracts + 4 wrappers (over `Pick<DxLinkClient,'createCall'>`) +
    `AbortSignal` plumbing + the `DxLinkClient.createService` **contract** and `DxLinkServiceClient<S>` mapped type
    (each transport implements `createService` itself — no shared builder, no abstract base) + `DxLinkMessageCodec` seam
@@ -235,8 +285,8 @@ Status legend: ✅ done · 🟡 partial (bufbuild/server-blocked remainder) · �
    `@bufbuild/protobuf` (2.13.0) installed. 13 vitest tests (wrappers + canonical-JSON round-trip vs a real WKT schema),
    tsup esm+cjs+dts + tsc + eslint green.
 3. ✅ **`@dxfeed/dxlink-client-ws-v2`** — `DxLinkWebSocketClient` state machine (SETUP/AUTH/KEEPALIVE/reconnect),
-   channel mux, `createCall`→`DxLinkCall`, and its **own `createService`** that maps each method to the unary/server-stream
-   wrapper and **rejects unsupported models** (client-/bidi-streaming throw `DxLinkRpcError`, pending the half-close item).
+   channel mux, `createCall`→`DxLinkCall`, and its **own `createService`** that maps each method to the unary/server-stream/bidi
+   wrapper and **rejects client-streaming** (`DxLinkRpcError`), the only model the half-close item still blocks.
    **Both frame codecs implemented**: JSON (envelope faithful to `dxlink-java`, RPC method via `parameters.methodName`) and
    **protobuf** (`createProtobufFrameCodec` — one `DxLinkWsFrame` per binary message, `google.protobuf.Any` payload,
    faithful to `dxlink-java`'s `ProtobufFrameCodec`). `format` selects the matching frame + message codec; **`'protobuf'`
@@ -247,8 +297,8 @@ Status legend: ✅ done · 🟡 partial (bufbuild/server-blocked remainder) · �
    `createService(EchoService)` binds unary + server-stream over an in-memory transport in **both `json` and `protobuf`**,
    with real `protoc-gen-es` messages + wire-format assertions, and `createService(QuoteService)` round-trips over the HTTP
    client; `createService(TestService)` rejects the streaming-input models on both transports. **Remaining:** bind the real
-   generated business service against the **live server** in both formats. *(Blocked on the `dxtrade-api-specs` codegen
-   output + a reachable live server / auth token — network + credentials this sandbox lacks.)*
+   generated business service against the **live server** in both formats. _(Blocked on the `dxtrade-api-specs` codegen
+   output + a reachable live server / auth token — network + credentials this sandbox lacks.)_
 5. ✅ **HTTP client** — `@dxfeed/dxlink-client-http-v2`: `DxLinkHttpClient` implements `DxLinkClient` over
    `fetch` against the `dxlink-http-framework` **HTTP/JSON transcoding** binding (confirmed by reading the
    Java server): each unary RPC is a `POST /{service}/{method}` (path lower-cased) with a **canonical
@@ -257,5 +307,5 @@ Status legend: ✅ done · 🟡 partial (bufbuild/server-blocked remainder) · �
    SETUP/KEEPALIVE). **Unary only** — the server returns `505` for streaming, so `createService` rejects
    every non-`REQUEST_RESPONSE` model. 6 in-package vitest tests (mock `fetch`, transport mechanics via hand-built
    descriptors + inline model-rejection); the real generated-service round-trip is in the conformance package (Phase 4).
-   tsc + build + lint green. *(Note: the binding is Google-API JSON transcoding,
-   **not** connect-es/gRPC-web as originally sketched — corrected in the packages table.)*
+   tsc + build + lint green. _(Note: the binding is Google-API JSON transcoding,
+   **not** connect-es/gRPC-web as originally sketched — corrected in the packages table.)_
