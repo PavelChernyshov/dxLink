@@ -1,6 +1,6 @@
 {
   "name": "@dxfeed/dxlink-client-v2",
-  "version": "0.0.0-alpha.1",
+  "version": "0.0.0-alpha.2",
   "private": false,
   "sideEffects": false,
   "description": "dxLink v2 base client — RPC abstraction, call/stream contracts and wrappers for protocol v1.0",
